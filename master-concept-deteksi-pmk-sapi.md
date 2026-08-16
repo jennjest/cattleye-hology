@@ -29,7 +29,7 @@ Seluruh keputusan di atas boleh dikritik tapi tidak diganti tanpa justifikasi te
 
 | Aspek | Deskripsi |
 |---|---|
-| Nama sementara sistem | Belum ditetapkan — lihat kandidat di bawah. `[OPEN]` |
+| Nama sementara sistem | CATTELEYE `[DECIDED]` |
 | Problem yang diselesaikan | Keterlambatan deteksi indikasi awal PMK pada sapi akibat monitoring manual yang tidak kontinu |
 | Target pengguna primer | Peternak/pengelola kandang (individu atau kelompok ternak) `[DECIDED — dari baseline]` |
 | Target pengguna sekunder (kandidat) | Dinas peternakan / dokter hewan wilayah, sebagai penerima eskalasi `[PROPOSED]` — belum ada keputusan role & akses |
@@ -39,16 +39,6 @@ Seluruh keputusan di atas boleh dikritik tapi tidak diganti tanpa justifikasi te
 | Batasan sistem | Alat **skrining/deteksi dini**, bukan alat diagnosis final. Diagnosis dan keputusan medis tetap wewenang dokter hewan. Sistem tidak memberi rekomendasi pengobatan. |
 | Scope prototype | 1 lokasi kandang, jumlah sapi terbatas (`[ASSUMPTION]` ±5–10 ekor untuk kebutuhan pengujian — perlu dikonfirmasi kapasitas mitra kandang), hardware tunggal per komponen |
 | Scope pengembangan masa depan | Multi-kandang, upgrade sensor suhu ke rumen bolus, pose estimation, prediksi penyebaran wabah antar wilayah (mengacu baseline "future work") |
-
-### Kandidat Nama Sistem `[PROPOSED]`
-
-| Nama | Kepanjangan/Makna | Catatan |
-|---|---|---|
-| SIGAP-PMK | Sistem Indikasi Gejala Awal Penyakit – PMK | "Sigap" = responsif, relevan dengan positioning early-warning |
-| EWS-PMK | Early Warning System – PMK | Literal, konsisten dengan istilah di baseline doc |
-| CattleGuard IoT | — | Nama internasional, cocok jika target juga eksternal/juri berbahasa Inggris |
-
-Belum ada rekomendasi final — menunggu diskusi tim (masuk Open Decision Register).
 
 ---
 
