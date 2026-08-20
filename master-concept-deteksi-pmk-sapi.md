@@ -37,7 +37,7 @@ Seluruh keputusan di atas boleh dikritik tapi tidak diganti tanpa justifikasi te
 | Konsep solusi | Wearable (kalung) + kamera stasioner (ESP32-CAM) → edge AI (RPi3) → sensor fusion → skor risiko → dashboard web (React) untuk peternak |
 | Value proposition | Monitoring kontinu 24/7 tanpa observasi manual berulang; deteksi lebih awal dari yang mampu dilakukan observasi visual sesaat; skor risiko terukur dan dapat dilacak historinya |
 | Batasan sistem | Alat **skrining/deteksi dini**, bukan alat diagnosis final. Diagnosis dan keputusan medis tetap wewenang dokter hewan. Sistem tidak memberi rekomendasi pengobatan. |
-| Scope prototype | 1 lokasi kandang, jumlah sapi terbatas (`[ASSUMPTION]` ±5–10 ekor untuk kebutuhan pengujian — perlu dikonfirmasi kapasitas mitra kandang), hardware tunggal per komponen |
+| Scope prototype | 1 lokasi kandang, jumlah sapi terbatas (`[ASSUMPTION]` ±2-3 ekor untuk kebutuhan pengujian — perlu dikonfirmasi kapasitas mitra kandang), hardware tunggal per komponen |
 | Scope pengembangan masa depan | Multi-kandang, upgrade sensor suhu ke rumen bolus, pose estimation, prediksi penyebaran wabah antar wilayah (mengacu baseline "future work") |
 
 ---
