@@ -1,0 +1,13 @@
+services:
+  fmd-detector:
+    build: .
+    image: fmd-cattle-detector:latest
+    container_name: fmd-cattle-detector
+    ports:
+      - "8501:8501"
+    volumes:
+      # Mount model & labels dari host, tidak perlu rebuild image
+      # setiap kali model diganti/dilatih ulang.
+      - ./fmd_cattle_model.keras:/app/fmd_cattle_model.keras:ro
+      - ./labels.txt:/app/labels.txt:ro
+    restart: unless-stopped

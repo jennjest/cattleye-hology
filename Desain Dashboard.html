@@ -1,0 +1,1847 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CATTLEYE - AI Livestock Monitoring System</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              dark: '#122D22',
+              primary: '#1B4332',
+              secondary: '#2D6A4F',
+              light: '#52B788',
+              accent: '#95D5B2',
+              soft: '#D8F3DC',
+            },
+            bgMain: '#F8F9FA',
+            danger: '#D62828',
+            warning: '#F4A261',
+            success: '#2A9D8F',
+          },
+          borderRadius: {
+            '2xl': '16px',
+            '3xl': '24px',
+          },
+          boxShadow: {
+            'soft': '0 4px 20px -2px rgba(27, 67, 50, 0.06), 0 2px 6px -1px rgba(0, 0, 0, 0.03)',
+            'soft-lg': '0 12px 32px -4px rgba(27, 67, 50, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.04)',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #F8F9FA;
+      color: #1F2937;
+      overflow-x: hidden;
+    }
+
+    .dark body {
+      background-color: #0F172A;
+      color: #F3F4F6;
+    }
+
+    /* Page Fade Transition */
+    .page-section {
+      opacity: 0;
+      transition: opacity 250ms ease-in-out, transform 250ms ease-in-out;
+      transform: translateY(6px);
+      display: none;
+    }
+
+    .page-section.active {
+      display: block;
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #CBD5E1;
+      border-radius: 99px;
+    }
+    .dark ::-webkit-scrollbar-thumb {
+      background: #334155;
+    }
+
+    /* Pulse effects */
+    @keyframes pulse-red {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.15); opacity: 0.7; }
+    }
+    .pulse-danger {
+      animation: pulse-red 1.8s infinite ease-in-out;
+    }
+
+    /* Custom Switch Toggle styling */
+    .toggle-checkbox:checked {
+      right: 0;
+      border-color: #1B4332;
+    }
+    .toggle-checkbox:checked + .toggle-label {
+      background-color: #1B4332;
+    }
+
+    /* Barn grid styling */
+    .barn-zone {
+      background-image: radial-gradient(#CBD5E1 1px, transparent 1px);
+      background-size: 16px 16px;
+    }
+    .dark .barn-zone {
+      background-image: radial-gradient(#334155 1px, transparent 1px);
+    }
+  </style>
+</head>
+
+<body class="h-full antialiased selection:bg-brand-accent selection:text-brand-dark transition-colors duration-300">
+
+  <div id="app" class="flex h-screen overflow-hidden">
+
+    <!-- SIDEBAR -->
+    <aside class="w-[220px] bg-brand-primary dark:bg-brand-dark text-white flex flex-col justify-between shrink-0 z-30 transition-all duration-300 shadow-xl">
+      <div>
+        <!-- Logo Header -->
+        <div class="px-5 py-6 flex items-center gap-3 border-b border-brand-secondary/40">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-accent to-brand-light flex items-center justify-center text-brand-dark shadow-md font-bold text-xl">
+            <i data-lucide="eye" class="w-6 h-6 stroke-[2.5]"></i>
+          </div>
+          <div>
+            <h1 class="font-bold tracking-tight text-lg leading-none text-white">CATTLEYE</h1>
+            <span class="text-[8px] font-medium tracking-wider text-brand-accent/80 uppercase">Cow Disease Detection</span>
+          </div>
+        </div>
+
+        <!-- Navigation Menu -->
+        <nav class="p-3 space-y-1.5 mt-2">
+          <button onclick="switchPage('overview')" id="nav-overview" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 text-brand-accent bg-brand-secondary/60 shadow-inner">
+            <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+            <span>Gambaran Umum</span>
+          </button>
+
+          <button onclick="switchPage('map')" id="nav-map" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-gray-300 hover:text-white hover:bg-brand-secondary/40 transition-all duration-200">
+            <i data-lucide="map" class="w-4 h-4"></i>
+            <span>Peta Kandang</span>
+          </button>
+
+          <button onclick="switchPage('livestock')" id="nav-livestock" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-gray-300 hover:text-white hover:bg-brand-secondary/40 transition-all duration-200">
+            <i data-lucide="list-tree" class="w-4 h-4"></i>
+            <span>Daftar Ternak</span>
+          </button>
+
+          <button onclick="switchPage('detail')" id="nav-detail" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-gray-300 hover:text-white hover:bg-brand-secondary/40 transition-all duration-200">
+            <i data-lucide="activity" class="w-4 h-4"></i>
+            <span>Detail Ternak</span>
+          </button>
+
+          <button onclick="switchPage('analytics')" id="nav-analytics" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-gray-300 hover:text-white hover:bg-brand-secondary/40 transition-all duration-200">
+            <i data-lucide="line-chart" class="w-4 h-4"></i>
+            <span>Analitik</span>
+          </button>
+
+          <button onclick="switchPage('settings')" id="nav-settings" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-gray-300 hover:text-white hover:bg-brand-secondary/40 transition-all duration-200">
+            <i data-lucide="settings" class="w-4 h-4"></i>
+            <span>Pengaturan</span>
+          </button>
+        </nav>
+      </div>
+
+      <!-- Footer User Summary -->
+      <div class="p-3 border-t border-brand-secondary/40">
+        <div class="flex items-center gap-3 p-2 rounded-xl bg-brand-dark/40 dark:bg-black/30 border border-brand-secondary/30">
+          <div class="relative">
+            <img src="https://static.vecteezy.com/system/resources/previews/060/605/418/non_2x/default-avatar-profile-icon-social-media-user-free-vector.jpg" class="w-9 h-9 rounded-lg object-cover border border-brand-accent/40" alt="Veterinarian Profile">
+            <span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-brand-dark rounded-full"></span>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-xs font-semibold text-white truncate">Dr. Eye</p>
+            <p class="text-[10px] text-brand-accent/70 truncate">Chief Veterinarian</p>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT CONTAINER -->
+    <div class="flex-1 flex flex-col min-w-0 overflow-hidden bg-bgMain dark:bg-slate-900 transition-colors duration-300">
+      
+      <header class="h-16 border-b border-gray-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md px-6 flex items-center justify-between z-20 shrink-0">
+        <!-- Title & Breadcrumb -->
+        <div class="flex items-center gap-3">
+          <h2 id="topbar-title" class="text-base font-bold text-gray-800 dark:text-white tracking-tight">Health Monitor</h2>
+          <span class="text-xs px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 font-medium flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            IoT Gateway Online
+          </span>
+        </div>
+
+        <!-- Right Quick Action Bar -->
+        <div class="flex items-center gap-3">
+          <!-- Quick Search -->
+          <div class="relative hidden sm:block">
+            <i data-lucide="search" class="w-4 h-4 absolute left-3 top-2.5 text-gray-400"></i>
+            <input type="text" id="global-search" oninput="handleGlobalSearch(this.value)" placeholder="Cari Sapi (ID / Nama)..." class="w-56 text-xs bg-gray-100 dark:bg-slate-800 border-0 rounded-xl pl-9 pr-3 py-2 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-brand-primary outline-none transition-all">
+          </div>
+
+          <!-- Quick AI Trigger -->
+          <button onclick="generateRandomAlert()" class="px-3.5 py-2 bg-gradient-to-r from-brand-primary to-brand-secondary hover:opacity-95 text-white text-xs font-semibold rounded-xl shadow-md transition-all flex items-center gap-2 active:scale-95">
+            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-brand-accent"></i>
+            <span>Generate AI Alert</span>
+          </button>
+
+          <!-- Notifications Bell -->
+          <button onclick="showToast('Sistem AI aktif: 24 Sapi terpantau penuh.', 'info')" class="p-2 rounded-xl text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800 relative transition-colors">
+            <i data-lucide="bell" class="w-5 h-5"></i>
+            <span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500"></span>
+          </button>
+        </div>
+      </header>
+
+      <!-- PAGE CONTENT AREA -->
+      <main class="flex-1 overflow-y-auto p-6 space-y-6">
+
+        <!-- ================= PAGE 1: IKHTISAR ================= -->
+        <section id="page-overview" class="page-section active space-y-6">
+          
+          <!-- Welcome Banner -->
+          <div class="bg-gradient-to-r from-brand-primary via-brand-secondary to-emerald-800 rounded-2xl p-6 text-white shadow-soft relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div class="absolute -right-10 -bottom-10 w-48 h-48 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
+            <div class="z-10">
+              <span class="text-xs font-semibold uppercase tracking-widest text-brand-accent mb-1 block">AI Livestock Monitoring System</span>
+              <h1 class="text-2xl font-bold tracking-tight">Selamat Datang, Dr. Eye</h1>
+              <p class="text-xs text-emerald-100/80 mt-1 max-w-xl">Pemantauan kesehatan ternak secara *real-time* berbasis Computer Vision & sensor IoT. 24 ekor sapi dalam pengawasan intensif.</p>
+            </div>
+            <div class="z-10 flex items-center gap-3">
+              <button onclick="switchPage('map')" class="px-4 py-2.5 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-xl text-xs font-semibold text-white border border-white/20 transition-all flex items-center gap-2">
+                <i data-lucide="map-pin" class="w-4 h-4"></i>
+                <span>Buka Denah Kandang</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- KPI Cards Grid -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Total Livestock Card -->
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-gray-100 dark:border-slate-700/60 shadow-soft hover:shadow-soft-lg transition-all">
+              <div class="flex justify-between items-start">
+                <div>
+                  <p class="text-xs font-semibold text-gray-500 dark:text-gray-400">Total Ternak</p>
+                  <h3 id="kpi-total" class="text-3xl font-bold text-gray-800 dark:text-white mt-2">24</h3>
+                </div>
+                <div class="p-3 rounded-xl bg-brand-soft/60 dark:bg-emerald-950/50 text-brand-primary dark:text-brand-accent">
+                  <i data-lucide="box" class="w-6 h-6"></i>
+                </div>
+              </div>
+              <p class="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium mt-3 flex items-center gap-1">
+                <i data-lucide="trending-up" class="w-3.5 h-3.5"></i>
+                <span>100% Sinyal IoT Terhubung</span>
+              </p>
+            </div>
+
+            <!-- Normal Status Card -->
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-gray-100 dark:border-slate-700/60 shadow-soft hover:shadow-soft-lg transition-all">
+              <div class="flex justify-between items-start">
+                <div>
+                  <p class="text-xs font-semibold text-gray-500 dark:text-gray-400">Kondisi Normal</p>
+                  <h3 id="kpi-normal" class="text-3xl font-bold text-emerald-600 dark:text-emerald-400 mt-2">18</h3>
+                </div>
+                <div class="p-3 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-300">
+                  <i data-lucide="check-circle-2" class="w-6 h-6"></i>
+                </div>
+              </div>
+              <p id="kpi-normal-pct" class="text-[11px] text-gray-500 dark:text-gray-400 mt-3">75% dari total populasi</p>
+            </div>
+
+            <!-- Waspada Card -->
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-gray-100 dark:border-slate-700/60 shadow-soft hover:shadow-soft-lg transition-all">
+              <div class="flex justify-between items-start">
+                <div>
+                  <p class="text-xs font-semibold text-gray-500 dark:text-gray-400">Status Waspada</p>
+                  <h3 id="kpi-waspada" class="text-3xl font-bold text-amber-500 mt-2">4</h3>
+                </div>
+                <div class="p-3 rounded-xl bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400">
+                  <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+                </div>
+              </div>
+              <p class="text-[11px] text-amber-600 dark:text-amber-400 font-medium mt-3">Perlu Pengamatan Suhu</p>
+            </div>
+
+            <!-- Risiko Tinggi Card -->
+            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-gray-100 dark:border-slate-700/60 shadow-soft hover:shadow-soft-lg transition-all">
+              <div class="flex justify-between items-start">
+                <div>
+                  <p class="text-xs font-semibold text-gray-500 dark:text-gray-400">Risiko Tinggi</p>
+                  <h3 id="kpi-risiko" class="text-3xl font-bold text-red-600 dark:text-red-400 mt-2">2</h3>
+                </div>
+                <div class="p-3 rounded-xl bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400">
+                  <i data-lucide="shield-alert" class="w-6 h-6"></i>
+                </div>
+              </div>
+              <p class="text-[11px] text-red-600 dark:text-red-400 font-medium mt-3 flex items-center gap-1">
+                <i data-lucide="alert-circle" class="w-3.5 h-3.5"></i>
+                <span>Tindakan medis diperlukan</span>
+              </p>
+            </div>
+          </div>
+
+          <!-- Main Dashboard Visual Content -->
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- 7-Day Trend Canvas Chart (2 columns) -->
+            <div class="lg:col-span-2 bg-white dark:bg-slate-800 p-6 rounded-2xl border border-gray-100 dark:border-slate-700/60 shadow-soft">
+              <div class="flex items-center justify-between mb-4">
+                <div>
+                  <h3 class="text-sm font-bold text-gray-800 dark:text-white">Tren Suhu & Detak Jantung Rata-Rata (7 Hari)</h3>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">Korelasi parameter vital kesehatan kelompok ternak</p>
+                </div>
+                <span class="text-xs font-semibold text-brand-primary dark:text-brand-accent bg-brand-soft/50 dark:bg-emerald-950/60 px-3 py-1 rounded-full">Kandang A - D</span>
+              </div>
+              <div class="relative h-64 w-full">
+                <canvas id="overviewChart" class="w-full h-full"></canvas>
+              </div>
+            </div>
+
+            <!-- Weather Widget & Recent Alerts Panel -->
+            <div class="space-y-6">
+              <!-- Weather & Microclimate Widget -->
+              <div class="bg-gradient-to-br from-emerald-900 to-brand-primary p-5 rounded-2xl text-white shadow-soft">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-semibold uppercase tracking-wider text-brand-accent">Kandang Microclimate</span>
+                  <span class="text-[11px] bg-white/10 px-2.5 py-0.5 rounded-full">Sensors Live</span>
+                </div>
+                <div class="flex items-center gap-4 mt-3">
+                  <i data-lucide="cloud-sun" class="w-12 h-12 text-brand-accent shrink-0"></i>
+                  <div>
+                    <h4 class="text-2xl font-bold">28.4 °C</h4>
+                    <p class="text-xs text-emerald-100/80">Kelembapan: 68% | THI Index: 74 (Aman)</p>
+                  </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-white/10 text-xs">
+                  <div>
+                    <span class="text-emerald-200/70 text-[10px]">Kecepatan Angin</span>
+                    <p class="font-semibold">3.2 m/s (Sirkulasi Bagus)</p>
+                  </div>
+                  <div>
+                    <span class="text-emerald-200/70 text-[10px]">Status Kipas AI</span>
+                    <p class="font-semibold text-brand-accent">Otomatis Aktif</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Quick Status Breakdown -->
+              <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-gray-100 dark:border-slate-700/60 shadow-soft">
+                <h4 class="text-xs font-bold text-gray-800 dark:text-white uppercase tracking-wider mb-3">Sebaran Sapi Risiko Per Kandang</h4>
+                <div class="space-y-2.5 text-xs">
+                  <div>
+                    <div class="flex justify-between font-medium mb-1 dark:text-gray-300">
+                      <span>Kandang A</span>
+                      <span class="text-emerald-600 dark:text-emerald-400 font-semibold">1 Risiko / 6 Sapi</span>
+                    </div>
+                    <div class="w-full bg-gray-100 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                      <div class="bg-emerald-500 h-full rounded-full" style="width: 16%"></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div class="flex justify-between font-medium mb-1 dark:text-gray-300">
+                      <span>Kandang B</span>
+                      <span class="text-amber-500 font-semibold">2 Waspada / 6 Sapi</span>
+                    </div>
+                    <div class="w-full bg-gray-100 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                      <div class="bg-amber-500 h-full rounded-full" style="width: 33%"></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div class="flex justify-between font-medium mb-1 dark:text-gray-300">
+                      <span>Kandang C</span>
+                      <span class="text-red-500 font-semibold">1 Risiko / 6 Sapi</span>
+                    </div>
+                    <div class="w-full bg-gray-100 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                      <div class="bg-red-500 h-full rounded-full" style="width: 16%"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Bottom Row: Recent Alerts & Last Activity -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            <!-- Recent Alerts Timeline -->
+            <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-gray-100 dark:border-slate-700/60 shadow-soft">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="text-sm font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                  <i data-lucide="bell-ring" class="w-4 h-4 text-brand-primary dark:text-brand-accent"></i>
+                  <span>Recent Alerts Timeline</span>
+                </h3>
+                <span class="text-[11px] text-gray-400">Diperbarui Otomatis</span>
+              </div>
+              <div id="alerts-timeline" class="space-y-4 max-h-72 overflow-y-auto pr-1">
+                <!-- Dynamic insertion -->
+              </div>
+            </div>
+
+            <!-- Aktivitas Terakhir Sensor & Kamera -->
+            <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-gray-100 dark:border-slate-700/60 shadow-soft">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="text-sm font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                  <i data-lucide="activity" class="w-4 h-4 text-brand-primary dark:text-brand-accent"></i>
+                  <span>Aktivitas Sistem & Sensor Terakhir</span>
+                </h3>
+                <span class="text-[11px] text-emerald-600 font-semibold">Real-time Stream</span>
+              </div>
+              <div id="activities-list" class="space-y-3.5 max-h-72 overflow-y-auto pr-1 text-xs">
+                <!-- Dynamic insertion -->
+              </div>
+            </div>
+
+          </div>
+
+        </section>
+
+
+        <!-- ================= PAGE 2: PETA KANDANG ================= -->
+        <section id="page-map" class="page-section space-y-6">
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h1 class="text-xl font-bold text-gray-800 dark:text-white">Peta Layout Denah Kandang Visual</h1>
+              <p class="text-xs text-gray-500 dark:text-gray-400">Klik marker sapi untuk melihat cepat ringkasan. Klik ganda untuk ke Detail Ternak.</p>
+            </div>
+            <!-- Mini Legend -->
+            <div class="flex items-center gap-4 bg-white dark:bg-slate-800 px-4 py-2 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm text-xs">
+              <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-emerald-500"></span> Normal</span>
+              <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-amber-500"></span> Waspada</span>
+              <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-red-500"></span> Risiko Tinggi</span>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            
+            <!-- Barn Visual Layout (3 cols) -->
+            <div class="lg:col-span-3 bg-white dark:bg-slate-800 p-6 rounded-2xl border border-gray-100 dark:border-slate-700/60 shadow-soft relative min-h-[520px] flex flex-col justify-between">
+              
+              <!-- Map Grid (4 Barns: A, B, C, D) -->
+              <div class="grid grid-cols-2 gap-6 flex-1">
+                
+                <!-- Barn A -->
+                <div class="barn-zone border-2 border-dashed border-gray-300 dark:border-slate-700 rounded-2xl p-4 relative bg-gray-50/50 dark:bg-slate-900/40">
+                  <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-800 px-2.5 py-1 rounded-lg border border-gray-200 dark:border-slate-700 shadow-2xs">Kandang A (Perah)</span>
+                    <span class="text-[10px] text-gray-400">Sapi ID #001 - #006</span>
+                  </div>
+                  <div id="barn-a-pins" class="grid grid-cols-3 gap-3 pt-3"></div>
+                </div>
+
+                <!-- Barn B -->
+                <div class="barn-zone border-2 border-dashed border-gray-300 dark:border-slate-700 rounded-2xl p-4 relative bg-gray-50/50 dark:bg-slate-900/40">
+                  <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-800 px-2.5 py-1 rounded-lg border border-gray-200 dark:border-slate-700 shadow-2xs">Kandang B (Penggemukan)</span>
+                    <span class="text-[10px] text-gray-400">Sapi ID #007 - #012</span>
+                  </div>
+                  <div id="barn-b-pins" class="grid grid-cols-3 gap-3 pt-3"></div>
+                </div>
+
+                <!-- Barn C -->
+                <div class="barn-zone border-2 border-dashed border-gray-300 dark:border-slate-700 rounded-2xl p-4 relative bg-gray-50/50 dark:bg-slate-900/40">
+                  <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-800 px-2.5 py-1 rounded-lg border border-gray-200 dark:border-slate-700 shadow-2xs">Kandang C (Pembibitan)</span>
+                    <span class="text-[10px] text-gray-400">Sapi ID #013 - #018</span>
+                  </div>
+                  <div id="barn-c-pins" class="grid grid-cols-3 gap-3 pt-3"></div>
+                </div>
+
+                <!-- Barn D -->
+                <div class="barn-zone border-2 border-dashed border-gray-300 dark:border-slate-700 rounded-2xl p-4 relative bg-gray-50/50 dark:bg-slate-900/40">
+                  <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-800 px-2.5 py-1 rounded-lg border border-gray-200 dark:border-slate-700 shadow-2xs">Kandang D (Isolasi & Medis)</span>
+                    <span class="text-[10px] text-gray-400">Sapi ID #019 - #024</span>
+                  </div>
+                  <div id="barn-d-pins" class="grid grid-cols-3 gap-3 pt-3"></div>
+                </div>
+
+              </div>
+
+              <div class="mt-4 pt-3 border-t border-gray-100 dark:border-slate-700 text-[11px] text-gray-400 flex justify-between items-center">
+                <span><i data-lucide="info" class="w-3.5 h-3.5 inline mr-1"></i> Hint: Arahkan kursor ke pin untuk preview, klik untuk pilih.</span>
+                <span>CATTLEYE Spatial Tracking Engine v2.4</span>
+              </div>
+            </div>
+
+            <!-- Right Detail Side Panel -->
+            <div id="map-side-panel" class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-gray-100 dark:border-slate-700/60 shadow-soft flex flex-col justify-between">
+              <div>
+                <div class="flex justify-between items-start border-b border-gray-100 dark:border-slate-700 pb-4">
+                  <div>
+                    <span id="panel-barn" class="text-[10px] uppercase tracking-wider font-bold text-brand-primary dark:text-brand-accent">Kandang A</span>
+                    <h3 id="panel-title" class="text-lg font-bold text-gray-800 dark:text-white">Pilih Sapi</h3>
+                  </div>
+                  <span id="panel-status-badge" class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-gray-300">
+                    N/A
+                  </span>
+                </div>
+
+                <div id="panel-content" class="py-6 text-center text-gray-400 text-xs">
+                  <i data-lucide="mouse-pointer-click" class="w-10 h-10 mx-auto mb-2 opacity-50"></i>
+                  Klik salah satu pin sapi di denah kandang untuk melihat diagnosa IoT & AI Computer Vision.
+                </div>
+              </div>
+
+              <div id="panel-actions" class="hidden space-y-2 pt-4 border-t border-gray-100 dark:border-slate-700">
+                <button id="btn-goto-detail" class="w-full py-2.5 bg-brand-primary hover:bg-brand-secondary text-white font-semibold text-xs rounded-xl shadow transition-all flex items-center justify-center gap-2">
+                  <i data-lucide="external-link" class="w-4 h-4"></i>
+                  <span>Buka Halaman Detail Sapi</span>
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+
+        <!-- ================= PAGE 3: DAFTAR TERNAK ================= -->
+        <section id="page-livestock" class="page-section space-y-6">
+          
+          <!-- Header and Filter Toolbar -->
+          <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-gray-100 dark:border-slate-700/60 shadow-soft flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between">
+            
+            <!-- Search Input -->
+            <div class="relative flex-1 max-w-md">
+              <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-3 text-gray-400"></i>
+              <input type="text" id="table-search" oninput="applyTableFilters()" placeholder="Cari ID, nama sapi, atau indikasi..." class="w-full text-xs bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-brand-primary outline-none">
+            </div>
+
+            <!-- Filters -->
+            <div class="flex flex-wrap items-center gap-3">
+              <!-- Filter Status -->
+              <select id="filter-status" onchange="applyTableFilters()" class="text-xs bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl px-3 py-2.5 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-brand-primary outline-none">
+                <option value="ALL">Semua Status</option>
+                <option value="Normal">Normal</option>
+                <option value="Waspada">Waspada</option>
+                <option value="Risiko Tinggi">Risiko Tinggi</option>
+              </select>
+
+              <!-- Filter Kandang -->
+              <select id="filter-barn" onchange="applyTableFilters()" class="text-xs bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl px-3 py-2.5 text-gray-700 dark:text-gray-200 focus:ring-2 focus:ring-brand-primary outline-none">
+                <option value="ALL">Semua Kandang</option>
+                <option value="Kandang A">Kandang A</option>
+                <option value="Kandang B">Kandang B</option>
+                <option value="Kandang C">Kandang C</option>
+                <option value="Kandang D">Kandang D</option>
+              </select>
+
+              <!-- Sorting ID -->
+              <button onclick="toggleSortOrder()" class="px-3 py-2.5 bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-200 rounded-xl text-xs font-semibold hover:bg-gray-200 dark:hover:bg-slate-600 transition-all flex items-center gap-1.5">
+                <i data-lucide="arrow-up-down" class="w-3.5 h-3.5"></i>
+                <span id="sort-label">Urutan ID: ASC</span>
+              </button>
+            </div>
+
+          </div>
+
+          <!-- Table Container -->
+          <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700/60 shadow-soft overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="bg-gray-50/80 dark:bg-slate-900/60 border-b border-gray-100 dark:border-slate-700/80 text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                    <th class="py-3.5 px-4">Foto</th>
+                    <th class="py-3.5 px-4">ID Sapi</th>
+                    <th class="py-3.5 px-4">Nama Sapi</th>
+                    <th class="py-3.5 px-4">Kandang</th>
+                    <th class="py-3.5 px-4">Suhu (°C)</th>
+                    <th class="py-3.5 px-4">Aktivitas IoT</th>
+                    <th class="py-3.5 px-4">Status AI</th>
+                    <th class="py-3.5 px-4 text-center">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="livestock-table-body" class="divide-y divide-gray-100 dark:divide-slate-700/60 text-xs">
+                  <!-- Dynamic rows generated by JS -->
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Table Pagination & Footer -->
+            <div class="p-4 bg-gray-50/50 dark:bg-slate-900/40 border-t border-gray-100 dark:border-slate-700 flex items-center justify-between text-xs text-gray-500">
+              <span id="table-showing-info">Menampilkan 1-10 dari 24 sapi</span>
+              <div class="flex items-center gap-2">
+                <button id="btn-prev-page" onclick="changePage(-1)" class="px-3 py-1.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-40">Previous</button>
+                <span id="page-num-display" class="font-semibold px-2 text-gray-800 dark:text-white">Halaman 1</span>
+                <button id="btn-next-page" onclick="changePage(1)" class="px-3 py-1.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700">Next</button>
+              </div>
+            </div>
+          </div>
+
+        </section>
+
+
+        <!-- ================= PAGE 4: DETAIL TERNAK ================= -->
+        <section id="page-detail" class="page-section space-y-6">
+          
+          <!-- Cattle Header Profile Bar -->
+          <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-gray-100 dark:border-slate-700/60 shadow-soft flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div class="flex items-center gap-4">
+              <img id="detail-avatar" src="" class="w-16 h-16 rounded-2xl object-cover border-2 border-brand-primary" alt="Cattle Photo">
+              <div>
+                <div class="flex items-center gap-3">
+                  <h1 id="detail-name" class="text-xl font-bold text-gray-800 dark:text-white">Sapi #---</h1>
+                  <span id="detail-status-pill" class="px-3 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">Normal</span>
+                </div>
+                <p id="detail-subtext" class="text-xs text-gray-500 dark:text-gray-400 mt-1">ID Tag: RFID---- | Kandang A | Bangsa: FH (Frisian Holstein)</p>
+              </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex flex-wrap items-center gap-3">
+              <button onclick="toggleIsolateCurrentCattle()" id="btn-isolate" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-xl shadow transition-all flex items-center gap-2">
+                <i data-lucide="shield-alert" class="w-4 h-4"></i>
+                <span id="isolate-btn-text">Isolate Animal</span>
+              </button>
+
+              <button onclick="triggerCallVet()" class="px-4 py-2 bg-brand-primary hover:bg-brand-secondary text-white text-xs font-semibold rounded-xl shadow transition-all flex items-center gap-2">
+                <i data-lucide="phone-call" class="w-4 h-4"></i>
+                <span>Call Veterinarian</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Main 8:4 Grid Layout -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <!-- Left Side (8 Cols) -->
+            <div class="lg:col-span-8 space-y-6">
+              
+              <!-- AI Camera Preview Box -->
+              <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-gray-100 dark:border-slate-700/60 shadow-soft space-y-4">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping"></span>
+                    <h3 class="text-xs font-bold text-gray-800 dark:text-white uppercase tracking-wider">AI Computer Vision Live Stream Feed</h3>
+                  </div>
+                  <span class="text-[10px] bg-black text-white px-2 py-0.5 rounded font-mono">CAM-04 (1080p FPS: 30)</span>
+                </div>
+
+                <!-- Live Camera Visual Container with Canvas Overlay -->
+                <div class="relative w-full h-80 bg-slate-900 rounded-xl overflow-hidden flex items-center justify-center">
+                  <img id="detail-stream-bg" src="https://images.unsplash.com/photo-1546445317-29f4545f9d52?auto=format&fit=crop&q=80&w=1000" class="absolute inset-0 w-full h-full object-cover opacity-80" alt="Camera Feed">
+                  
+                  <!-- Canvas Bounding Box Drawer -->
+                  <canvas id="aiVisionCanvas" class="absolute inset-0 w-full h-full pointer-events-none z-10"></canvas>
+
+                  <!-- Bounding Box Labels Bar Overlay -->
+                  <div class="absolute bottom-3 left-3 right-3 z-20 flex flex-wrap gap-2 bg-slate-900/80 backdrop-blur-md p-2.5 rounded-xl border border-white/10 text-[11px] text-white">
+                    <span class="font-semibold text-brand-accent">Deteksi CV AI:</span>
+                    <span id="cv-tag-salivation" class="px-2 py-0.5 rounded bg-amber-500/30 text-amber-300 border border-amber-500/40">Hyper Salivation: 88%</span>
+                    <span id="cv-tag-lameness" class="px-2 py-0.5 rounded bg-emerald-500/30 text-emerald-300 border border-emerald-500/40">Lameness (Kepincangan): Normal</span>
+                    <span id="cv-tag-mouth" class="px-2 py-0.5 rounded bg-red-500/30 text-red-300 border border-red-500/40">Mouth Lesion: Waspada</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 24-Hour Vital Parameter Line Chart -->
+              <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-gray-100 dark:border-slate-700/60 shadow-soft">
+                <div class="flex justify-between items-center mb-4">
+                  <div>
+                    <h3 class="text-sm font-bold text-gray-800 dark:text-white">Grafik Fluktuasi Suhu 24 Jam</h3>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Data kontinu dari Sensor Thermocouple IoT Ear-tag</p>
+                  </div>
+                  <span class="text-xs font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 px-3 py-1 rounded-full">Interval 1 Jam</span>
+                </div>
+                <div class="relative h-60 w-full">
+                  <canvas id="detail24hChart" class="w-full h-full"></canvas>
+                </div>
+              </div>
+
+              <!-- Medical & Activity History Timeline -->
+              <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-gray-100 dark:border-slate-700/60 shadow-soft">
+                <h3 class="text-sm font-bold text-gray-800 dark:text-white mb-4">Medical History & Log Diagnosa</h3>
+                <div id="detail-medical-history" class="space-y-4 border-l-2 border-gray-200 dark:border-slate-700 pl-4 ml-2">
+                  <!-- Dynamic History Insertion -->
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Right Side (4 Cols) -->
+            <div class="lg:col-span-4 space-y-6">
+              
+              <!-- Circular AI Risk Score Card -->
+              <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-gray-100 dark:border-slate-700/60 shadow-soft text-center">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-4">AI Risk Score Index</h3>
+                
+                <div class="relative w-40 h-40 mx-auto flex items-center justify-center">
+                  <canvas id="riskGaugeCanvas" class="w-full h-full"></canvas>
+                  <div class="absolute inset-0 flex flex-col items-center justify-center">
+                    <span id="gauge-score-val" class="text-3xl font-extrabold text-gray-800 dark:text-white">0</span>
+                    <span class="text-[10px] uppercase font-bold text-gray-400">/ 100</span>
+                  </div>
+                </div>
+
+                <p id="gauge-score-desc" class="text-xs text-gray-600 dark:text-gray-300 mt-4 font-medium">Tingkat Risiko Terhitung Rendah</p>
+              </div>
+
+              <!-- Interactive Sensor Live Cards -->
+              <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-gray-100 dark:border-slate-700/60 shadow-soft space-y-4">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Sensor Telemetri IoT Direct</h3>
+
+                <!-- Body Temp with Interactive Slider -->
+                <div class="p-4 rounded-xl bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-800 space-y-2">
+                  <div class="flex justify-between items-center">
+                    <span class="text-xs font-semibold text-gray-600 dark:text-gray-300 flex items-center gap-1.5">
+                      <i data-lucide="thermometer" class="w-4 h-4 text-red-500"></i> Body Temperature
+                    </span>
+                    <span id="sensor-temp-val" class="text-base font-bold text-gray-800 dark:text-white">38.5 °C</span>
+                  </div>
+                  <!-- Interactive Temp Slider -->
+                  <div class="space-y-1 pt-1">
+                    <input type="range" min="36.0" max="42.5" step="0.1" id="temp-slider" oninput="updateCattleTempLive(this.value)" class="w-full h-1.5 bg-gray-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-brand-primary">
+                    <div class="flex justify-between text-[10px] text-gray-400 font-mono">
+                      <span>36.0°C (Hipotermia)</span>
+                      <span>Simulasi Live Suhu</span>
+                      <span>42.5°C (Demam)</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Heart Rate -->
+                <div class="p-4 rounded-xl bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-800 flex justify-between items-center">
+                  <span class="text-xs font-semibold text-gray-600 dark:text-gray-300 flex items-center gap-1.5">
+                    <i data-lucide="heart-pulse" class="w-4 h-4 text-rose-500"></i> Heart Rate
+                  </span>
+                  <span id="sensor-hr-val" class="text-base font-bold text-gray-800 dark:text-white">72 BPM</span>
+                </div>
+
+                <!-- Activity -->
+                <div class="p-4 rounded-xl bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-800 flex justify-between items-center">
+                  <span class="text-xs font-semibold text-gray-600 dark:text-gray-300 flex items-center gap-1.5">
+                    <i data-lucide="footprints" class="w-4 h-4 text-emerald-500"></i> Activity Level
+                  </span>
+                  <span id="sensor-act-val" class="text-base font-bold text-gray-800 dark:text-white">Sedang (1,240 langkah)</span>
+                </div>
+
+                <!-- Rumination -->
+                <div class="p-4 rounded-xl bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-800 flex justify-between items-center">
+                  <span class="text-xs font-semibold text-gray-600 dark:text-gray-300 flex items-center gap-1.5">
+                    <i data-lucide="repeat" class="w-4 h-4 text-amber-500"></i> Rumination
+                  </span>
+                  <span id="sensor-rum-val" class="text-base font-bold text-gray-800 dark:text-white">420 menit/hari</span>
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </section>
+
+
+        <!-- ================= PAGE 5: ANALITIK ================= -->
+        <section id="page-analytics" class="page-section space-y-6">
+          
+          <!-- Filter Controls -->
+          <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-gray-100 dark:border-slate-700/60 shadow-soft flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <h1 class="text-xl font-bold text-gray-800 dark:text-white">Dashboard Analitik & Tren Peternakan</h1>
+              <p class="text-xs text-gray-500 dark:text-gray-400">Analisis agregat data sensor IoT dan deteksi anomalitas populasi ternak.</p>
+            </div>
+            
+            <div class="flex items-center gap-3">
+              <label class="text-xs font-semibold text-gray-500">Rentang Waktu:</label>
+              <select id="analytics-timeframe" onchange="renderAnalyticsCharts()" class="text-xs bg-gray-100 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-2 text-gray-800 dark:text-gray-200 font-bold focus:ring-2 focus:ring-brand-primary outline-none">
+                <option value="7">7 Hari Terakhir</option>
+                <option value="30" selected>30 Hari Terakhir</option>
+                <option value="90">90 Hari Terakhir</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Charts Row 1 -->
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- 30-Day Temp Trend Line Chart (2 Cols) -->
+            <div class="lg:col-span-2 bg-white dark:bg-slate-800 p-6 rounded-2xl border border-gray-100 dark:border-slate-700/60 shadow-soft">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="text-sm font-bold text-gray-800 dark:text-white">Rata-Rata Tren Suhu Populasi (°C)</h3>
+                <span class="text-xs font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-2.5 py-1 rounded-full">Batas Aman: 38.0 - 39.3°C</span>
+              </div>
+              <div class="relative h-64 w-full">
+                <canvas id="analyticsTempChart" class="w-full h-full"></canvas>
+              </div>
+            </div>
+
+            <!-- Livestock Status Donut Chart -->
+            <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-gray-100 dark:border-slate-700/60 shadow-soft flex flex-col justify-between">
+              <h3 class="text-sm font-bold text-gray-800 dark:text-white mb-2">Proporsi Status Kesehatan</h3>
+              <div class="relative h-48 w-full my-auto flex items-center justify-center">
+                <canvas id="analyticsDonutChart" class="w-full h-full"></canvas>
+              </div>
+              <div class="grid grid-cols-3 gap-2 text-center text-[11px] pt-3 border-t border-gray-100 dark:border-slate-700">
+                <div>
+                  <span class="block w-2.5 h-2.5 bg-emerald-500 rounded-full mx-auto mb-1"></span>
+                  <span class="text-gray-500">Normal</span>
+                </div>
+                <div>
+                  <span class="block w-2.5 h-2.5 bg-amber-500 rounded-full mx-auto mb-1"></span>
+                  <span class="text-gray-500">Waspada</span>
+                </div>
+                <div>
+                  <span class="block w-2.5 h-2.5 bg-red-500 rounded-full mx-auto mb-1"></span>
+                  <span class="text-gray-500">Risiko</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Charts Row 2 -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            <!-- Barn Distribution Bar Chart -->
+            <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-gray-100 dark:border-slate-700/60 shadow-soft">
+              <h3 class="text-sm font-bold text-gray-800 dark:text-white mb-4">Distribusi Penyakit / Risiko per Kandang</h3>
+              <div class="relative h-60 w-full">
+                <canvas id="analyticsBarChart" class="w-full h-full"></canvas>
+              </div>
+            </div>
+
+            <!-- Daily Activity Heatmap Canvas -->
+            <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-gray-100 dark:border-slate-700/60 shadow-soft">
+              <div class="flex justify-between items-center mb-4">
+                <h3 class="text-sm font-bold text-gray-800 dark:text-white">Heatmap Jam Aktivitas Ternak (24 Jam)</h3>
+                <span class="text-[11px] text-gray-400">Intensitas Pergerakan</span>
+              </div>
+              <div class="relative h-60 w-full">
+                <canvas id="analyticsHeatmapChart" class="w-full h-full"></canvas>
+              </div>
+            </div>
+
+          </div>
+
+        </section>
+
+
+        <!-- ================= PAGE 6: PENGATURAN ================= -->
+        <section id="page-settings" class="page-section space-y-6">
+          
+          <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-gray-100 dark:border-slate-700/60 shadow-soft">
+            <h1 class="text-xl font-bold text-gray-800 dark:text-white">Pengaturan Sistem CATTLEYE</h1>
+            <p class="text-xs text-gray-500 dark:text-gray-400">Konfigurasi AI Computer Vision, ambang batas IoT, dan preferensi aplikasi.</p>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <!-- User Profile Card -->
+            <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-gray-100 dark:border-slate-700/60 shadow-soft space-y-4">
+              <h3 class="text-sm font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                <i data-lucide="user" class="w-4 h-4 text-brand-primary dark:text-brand-accent"></i>
+                <span>Profil Pengguna & Dokter Hewan</span>
+              </h3>
+              
+              <div class="flex items-center gap-4">
+                <img src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=200" class="w-16 h-16 rounded-2xl object-cover border-2 border-brand-primary" alt="Doctor Profile">
+                <div>
+                  <h4 class="text-sm font-bold text-gray-800 dark:text-white">Dr. Eye</h4>
+                  <p class="text-xs text-gray-500">NIP: Vet-884920192</p>
+                  <p class="text-xs text-brand-primary dark:text-brand-accent font-semibold mt-0.5">Kepala Tim Medis Peternakan</p>
+                </div>
+              </div>
+
+              <div class="space-y-3 pt-2 text-xs">
+                <div>
+                  <label class="block text-gray-500 mb-1">Email Notifikasi Darurat</label>
+                  <input type="email" value="dr.meylisa@cattle-eye.ai" class="w-full p-2.5 rounded-xl border border-gray-200 dark:border-slate-700 dark:bg-slate-900 text-gray-800 dark:text-white outline-none">
+                </div>
+              </div>
+            </div>
+
+            <!-- Appearance & Dark Mode Toggle -->
+            <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-gray-100 dark:border-slate-700/60 shadow-soft space-y-4">
+              <h3 class="text-sm font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                <i data-lucide="moon" class="w-4 h-4 text-brand-primary dark:text-brand-accent"></i>
+                <span>Tampilan Dashboard</span>
+              </h3>
+
+              <div class="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-800">
+                <div>
+                  <p class="text-xs font-semibold text-gray-800 dark:text-white">Dark Mode (Tampilan Gelap)</p>
+                  <p class="text-[11px] text-gray-500">Mengubah tema warna aplikasi menjadi gelap</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" id="dark-mode-toggle" onchange="toggleDarkMode(this.checked)" class="sr-only peer">
+                  <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-primary"></div>
+                </label>
+              </div>
+
+              <div class="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-800">
+                <div>
+                  <p class="text-xs font-semibold text-gray-800 dark:text-white">Efek Visual & Chart Animation</p>
+                  <p class="text-[11px] text-gray-500">Aktifkan animasi grafik real-time</p>
+                </div>
+                <input type="checkbox" checked class="w-4 h-4 accent-brand-primary">
+              </div>
+            </div>
+
+            <!-- Notification Settings -->
+            <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-gray-100 dark:border-slate-700/60 shadow-soft space-y-4">
+              <h3 class="text-sm font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                <i data-lucide="bell" class="w-4 h-4 text-brand-primary dark:text-brand-accent"></i>
+                <span>Pengaturan Notifikasi</span>
+              </h3>
+
+              <div class="space-y-3 text-xs">
+                <label class="flex items-center justify-between">
+                  <span class="text-gray-700 dark:text-gray-300">Push Notification Suhu Tinggi</span>
+                  <input type="checkbox" checked class="w-4 h-4 accent-brand-primary">
+                </label>
+                <label class="flex items-center justify-between">
+                  <span class="text-gray-700 dark:text-gray-300">Peringatan AI Computer Vision (Lesion/Salivation)</span>
+                  <input type="checkbox" checked class="w-4 h-4 accent-brand-primary">
+                </label>
+                <label class="flex items-center justify-between">
+                  <span class="text-gray-700 dark:text-gray-300">Laporan Ringkasan Harian Email</span>
+                  <input type="checkbox" class="w-4 h-4 accent-brand-primary">
+                </label>
+              </div>
+            </div>
+
+            <!-- AI Threshold Settings -->
+            <div class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-gray-100 dark:border-slate-700/60 shadow-soft space-y-4">
+              <h3 class="text-sm font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                <i data-lucide="sliders" class="w-4 h-4 text-brand-primary dark:text-brand-accent"></i>
+                <span>Ambang Batas (AI Threshold)</span>
+              </h3>
+
+              <div class="space-y-4 text-xs">
+                <div>
+                  <div class="flex justify-between mb-1">
+                    <span class="text-gray-600 dark:text-gray-300">Batas Suhu Demam (Demam Alert)</span>
+                    <span id="setting-temp-val" class="font-bold text-brand-primary dark:text-brand-accent">39.5 °C</span>
+                  </div>
+                  <input type="range" min="38.5" max="41.0" step="0.1" value="39.5" oninput="document.getElementById('setting-temp-val').innerText = this.value + ' °C'" class="w-full accent-brand-primary">
+                </div>
+
+                <div>
+                  <div class="flex justify-between mb-1">
+                    <span class="text-gray-600 dark:text-gray-300">Sensitivitas Deteksi CV AI Confidence</span>
+                    <span id="setting-ai-val" class="font-bold text-brand-primary dark:text-brand-accent">80 %</span>
+                  </div>
+                  <input type="range" min="50" max="95" step="5" value="80" oninput="document.getElementById('setting-ai-val').innerText = this.value + ' %'" class="w-full accent-brand-primary">
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="flex justify-end pt-2">
+            <button onclick="showToast('Pengaturan berhasil disimpan!', 'success')" class="px-6 py-2.5 bg-brand-primary hover:bg-brand-secondary text-white text-xs font-bold rounded-xl shadow-md transition-all">
+              Simpan Pengaturan
+            </button>
+          </div>
+
+        </section>
+
+      </main>
+    </div>
+
+  </div>
+
+  <!-- MODAL SUPPORT CONTAINER -->
+  <div id="app-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden items-center justify-center p-4 transition-all">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 dark:border-slate-700 space-y-4 animate-in fade-in zoom-in duration-200">
+      <div class="flex items-center gap-3">
+        <div id="modal-icon-bg" class="p-3 rounded-xl bg-red-100 text-red-600">
+          <i id="modal-icon" data-lucide="alert-triangle" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h3 id="modal-title" class="text-base font-bold text-gray-800 dark:text-white">Konfirmasi Tindakan</h3>
+          <p id="modal-subtitle" class="text-xs text-gray-500">Tindakan ini memerlukan perhatian.</p>
+        </div>
+      </div>
+
+      <p id="modal-message" class="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+        Apakah Anda yakin ingin mengisolasi ternak ini? Status akan diperbarui secara otomatis di seluruh dashboard.
+      </p>
+
+      <div class="flex items-center justify-end gap-3 pt-2">
+        <button onclick="closeModal()" class="px-4 py-2 bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-200 text-xs font-semibold rounded-xl hover:bg-gray-200 transition-all">
+          Batal
+        </button>
+        <button id="modal-confirm-btn" onclick="executeModalAction()" class="px-4 py-2 bg-red-600 text-white text-xs font-semibold rounded-xl hover:bg-red-700 transition-all shadow">
+          Ya, Lanjutkan
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLOATING TOAST NOTIFICATION CONTAINER -->
+  <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <script>
+    /* ==========================================================================
+       1. GLOBAL DUMMY DATA GENERATOR (24 CATTLE RECORDS)
+       ========================================================================== */
+    const NAMES = ["Berti", "Molly", "Bima", "Luna", "Sultan", "Bella", "Gading", "Daisy", "Prabu", "Rosie", "Srikandi", "Lola", "Perkasa", "Klara", "Arjuna", "Penny", "Bagas", "Ruby", "Samson", "Coco", "Brama", "Stella", "Kresna", "Chloe"];
+    const BARNS = ["Kandang A", "Kandang B", "Kandang C", "Kandang D"];
+    const COWS_DATA = [];
+
+    // Photos
+    const COW_PHOTOS = [
+      "https://images.unsplash.com/photo-1546445317-29f4545f9d52?auto=format&fit=crop&q=80&w=300",
+      "https://images.unsplash.com/photo-1527153857715-3908f2bae5e8?auto=format&fit=crop&q=80&w=300",
+      "https://images.unsplash.com/photo-1500595046743-cd271d694d30?auto=format&fit=crop&q=80&w=300",
+      "https://images.unsplash.com/photo-1570042707223-3801f96e5fa3?auto=format&fit=crop&q=80&w=300"
+    ];
+
+    // Seed 24 Cattle
+    for (let i = 1; i <= 24; i++) {
+      const idStr = String(i).padStart(3, '0');
+      const barnIdx = Math.floor((i - 1) / 6); // 6 cows per barn
+      const barnName = BARNS[barnIdx];
+      
+      let status = "Normal";
+      let temp = +(38.0 + Math.random() * 0.8).toFixed(1);
+      let riskScore = Math.floor(Math.random() * 25);
+      let salivation = "Normal";
+      let lameness = "Normal";
+      let mouthLesion = "Normal";
+
+      // Inject specific alerts for high fidelity testing
+      if (i === 3 || i === 8 || i === 15 || i === 21) {
+        status = "Waspada";
+        temp = +(39.2 + Math.random() * 0.4).toFixed(1);
+        riskScore = 50 + Math.floor(Math.random() * 20);
+        salivation = "Ringan";
+      } else if (i === 6 || i === 19) {
+        status = "Risiko Tinggi";
+        temp = +(40.1 + Math.random() * 0.6).toFixed(1);
+        riskScore = 80 + Math.floor(Math.random() * 18);
+        salivation = "Hyper Salivation (High)";
+        mouthLesion = "Lesi Ditemukan";
+      }
+
+      COWS_DATA.push({
+        id: idStr,
+        name: NAMES[i - 1],
+        barn: barnName,
+        temp: temp,
+        heartRate: Math.floor(65 + Math.random() * 25),
+        activitySteps: Math.floor(800 + Math.random() * 1200),
+        ruminationMin: Math.floor(350 + Math.random() * 150),
+        status: status,
+        riskScore: riskScore,
+        salivation: salivation,
+        lameness: lameness,
+        mouthLesion: mouthLesion,
+        isIsolated: false,
+        photo: COW_PHOTOS[(i - 1) % COW_PHOTOS.length],
+        history: [
+          { time: "08:00 WIB", event: "Sensor IoT Ear-Tag melakukan sinkronisasi telemetry." },
+          { time: "06:30 WIB", event: `Pakan harian Kandang ${barnName.slice(-1)} diberikan.` }
+        ]
+      });
+    }
+
+    // State Variables
+    let currentSelectedCattleId = "006"; // Default focus
+    let currentPage = "overview";
+    let tableCurrentPage = 1;
+    const tablePageSize = 8;
+    let tableSortAsc = true;
+    let pendingModalAction = null;
+    let chartOverview, chart24h, chartAnalyticsTemp, chartAnalyticsBar, chartAnalyticsDonut, chartAnalyticsHeatmap;
+
+    /* ==========================================================================
+       2. INITIALIZATION & ROUTING
+       ========================================================================== */
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      initAlertsAndActivities();
+      renderBarnMapPins();
+      renderLivestockTable();
+      loadCattleDetailView(currentSelectedCattleId);
+      
+      // Initialize Canvas Charts
+      setTimeout(() => {
+        initOverviewChart();
+        init24hDetailChart();
+        renderAnalyticsCharts();
+      }, 100);
+    });
+
+    // Page Switcher
+    function switchPage(pageId) {
+      if (pageId === currentPage) return;
+
+      // Update Nav Button Styles
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('bg-brand-secondary/60', 'text-brand-accent');
+        btn.classList.add('text-gray-300');
+      });
+
+      const activeNav = document.getElementById(`nav-${pageId}`);
+      if (activeNav) {
+        activeNav.classList.add('bg-brand-secondary/60', 'text-brand-accent');
+        activeNav.classList.remove('text-gray-300');
+      }
+
+      // Smooth Fade Transitions
+      const oldPage = document.getElementById(`page-${currentPage}`);
+      const newPage = document.getElementById(`page-${pageId}`);
+
+      if (oldPage) {
+        oldPage.style.opacity = '0';
+        oldPage.style.transform = 'translateY(6px)';
+        setTimeout(() => {
+          oldPage.classList.remove('active');
+          if (newPage) {
+            newPage.classList.add('active');
+            setTimeout(() => {
+              newPage.style.opacity = '1';
+              newPage.style.transform = 'translateY(0)';
+            }, 30);
+          }
+        }, 200);
+      }
+
+      currentPage = pageId;
+
+      // Update Topbar Title
+      const titles = {
+        overview: "Monitoring & KPI",
+        map: "Peta Denah Kandang Interactive",
+        livestock: "Daftar Ternak & Filtering",
+        detail: `Detail Profil Sapi #${currentSelectedCattleId}`,
+        analytics: "Analitik & Metrik Peternakan",
+        settings: "Pengaturan Sistem & IoT"
+      };
+      document.getElementById('topbar-title').innerText = titles[pageId] || "CATTLEYE";
+
+      // Re-trigger Canvas Layout Resize when switching
+      setTimeout(() => {
+        if (pageId === 'overview' && chartOverview) chartOverview.resize();
+        if (pageId === 'detail') {
+          drawAIStreamCanvas();
+          drawRiskGauge(COWS_DATA.find(c => c.id === currentSelectedCattleId)?.riskScore || 0);
+        }
+        if (pageId === 'analytics') renderAnalyticsCharts();
+      }, 250);
+    }
+
+    /* ==========================================================================
+       3. PAGE 1: IKHTISAR LOGIC
+       ========================================================================== */
+    function updateKPICards() {
+      const total = COWS_DATA.length;
+      const normal = COWS_DATA.filter(c => c.status === 'Normal').length;
+      const waspada = COWS_DATA.filter(c => c.status === 'Waspada').length;
+      const risiko = COWS_DATA.filter(c => c.status === 'Risiko Tinggi').length;
+
+      document.getElementById('kpi-total').innerText = total;
+      document.getElementById('kpi-normal').innerText = normal;
+      document.getElementById('kpi-normal-pct').innerText = `${Math.round((normal/total)*100)}% dari total populasi`;
+      document.getElementById('kpi-waspada').innerText = waspada;
+      document.getElementById('kpi-risiko').innerText = risiko;
+    }
+
+    function initAlertsAndActivities() {
+      updateKPICards();
+      
+      const alertsContainer = document.getElementById('alerts-timeline');
+      const alertsData = [
+        { cow: "Sapi #006 (Bella)", msg: "Terdeteksi Hyper Salivation & Suhu 40.4°C", time: "10 min yang lalu", type: "danger" },
+        { cow: "Sapi #019 (Samson)", msg: "Suhu meningkat mencapai 40.1°C", time: "25 min yang lalu", type: "danger" },
+        { cow: "Sapi #003 (Bima)", msg: "Aktivitas berkurang 40% dari rata-rata", time: "1 jam yang lalu", type: "warning" }
+      ];
+
+      alertsContainer.innerHTML = alertsData.map(a => `
+        <div class="flex items-start gap-3 p-3 rounded-xl bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-800">
+          <span class="w-2.5 h-2.5 rounded-full ${a.type === 'danger' ? 'bg-red-500 animate-pulse' : 'bg-amber-500'} mt-1 shrink-0"></span>
+          <div class="flex-1 text-xs">
+            <p class="font-bold text-gray-800 dark:text-white">${a.cow}</p>
+            <p class="text-gray-500 dark:text-gray-400 mt-0.5">${a.msg}</p>
+          </div>
+          <span class="text-[10px] text-gray-400">${a.time}</span>
+        </div>
+      `).join('');
+
+      const actContainer = document.getElementById('activities-list');
+      const actData = [
+        "Kamera AI-02 memperbarui pemindaian bounding box Kandang A.",
+        "Sensor Suhu IoT Ear-Tag #012 mengirimkan paket telemetri.",
+        "Sistem pendingin kabut otomatis Kandang B diaktifkan.",
+        "Dr. Eye mengunggah catatan medis Sapi #006."
+      ];
+
+      actContainer.innerHTML = actData.map(act => `
+        <div class="flex items-center gap-2.5 text-gray-600 dark:text-gray-300">
+          <i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-500 shrink-0"></i>
+          <span>${act}</span>
+        </div>
+      `).join('');
+    }
+
+    function generateRandomAlert() {
+      // Pick a random cow and turn to Risk
+      const randomCow = COWS_DATA[Math.floor(Math.random() * COWS_DATA.length)];
+      randomCow.status = "Risiko Tinggi";
+      randomCow.temp = +(40.2 + Math.random() * 0.5).toFixed(1);
+      randomCow.riskScore = 85 + Math.floor(Math.random() * 10);
+
+      // Refresh KPI & UI
+      updateKPICards();
+      renderLivestockTable();
+      renderBarnMapPins();
+
+      // Append to alerts timeline
+      const alertsContainer = document.getElementById('alerts-timeline');
+      const newAlertHtml = `
+        <div class="flex items-start gap-3 p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-900/50 animate-in fade-in slide-in-from-top-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse mt-1 shrink-0"></span>
+          <div class="flex-1 text-xs">
+            <p class="font-bold text-red-900 dark:text-red-200">Sapi #${randomCow.id} (${randomCow.name})</p>
+            <p class="text-red-700 dark:text-red-300 mt-0.5">Anomali AI: Indikasi Demam Suhu ${randomCow.temp}°C</p>
+          </div>
+          <span class="text-[10px] text-red-500 font-semibold">Baru Saja</span>
+        </div>
+      `;
+      alertsContainer.insertAdjacentHTML('afterbegin', newAlertHtml);
+
+      showToast(`Peringatan AI Baru: Sapi #${randomCow.id} (${randomCow.name}) berisiko tinggi!`, 'danger');
+    }
+
+    /* ==========================================================================
+       4. PAGE 2: PETA KANDANG LOGIC
+       ========================================================================== */
+    function renderBarnMapPins() {
+      const barnsMap = {
+        'Kandang A': document.getElementById('barn-a-pins'),
+        'Kandang B': document.getElementById('barn-b-pins'),
+        'Kandang C': document.getElementById('barn-c-pins'),
+        'Kandang D': document.getElementById('barn-d-pins')
+      };
+
+      Object.values(barnsMap).forEach(el => { if (el) el.innerHTML = ''; });
+
+      COWS_DATA.forEach(cow => {
+        const container = barnsMap[cow.barn];
+        if (!container) return;
+
+        let colorClass = 'bg-emerald-500 text-white';
+        if (cow.status === 'Waspada') colorClass = 'bg-amber-500 text-white';
+        if (cow.status === 'Risiko Tinggi') colorClass = 'bg-red-500 text-white pulse-danger';
+
+        const pin = document.createElement('div');
+        pin.className = `p-2.5 rounded-xl ${colorClass} shadow-md cursor-pointer hover:scale-105 transition-all flex flex-col items-center justify-center text-center relative group`;
+        pin.innerHTML = `
+          <i data-lucide="box" class="w-4 h-4 mb-1"></i>
+          <span class="font-bold text-[11px]">#${cow.id}</span>
+          <span class="text-[9px] opacity-90 truncate max-w-[50px]">${cow.name}</span>
+
+          <!-- Tooltip on Hover -->
+          <div class="absolute bottom-full mb-2 hidden group-hover:block z-30 w-36 bg-slate-900 text-white text-[10px] p-2 rounded-lg shadow-xl pointer-events-none">
+            <p class="font-bold">#${cow.id} - ${cow.name}</p>
+            <p>Suhu: ${cow.temp}°C</p>
+            <p>Status: ${cow.status}</p>
+          </div>
+        `;
+
+        // Click -> Right Panel
+        pin.onclick = () => selectBarnPin(cow.id);
+        // Double Click -> Go to detail page
+        pin.ondblclick = () => {
+          loadCattleDetailView(cow.id);
+          switchPage('detail');
+        };
+
+        container.appendChild(pin);
+      });
+
+      lucide.createIcons();
+    }
+
+    function selectBarnPin(id) {
+      const cow = COWS_DATA.find(c => c.id === id);
+      if (!cow) return;
+
+      document.getElementById('panel-barn').innerText = cow.barn;
+      document.getElementById('panel-title').innerText = `#${cow.id} - ${cow.name}`;
+      
+      const badge = document.getElementById('panel-status-badge');
+      badge.innerText = cow.status;
+      badge.className = `px-2.5 py-1 rounded-full text-[10px] font-bold ${
+        cow.status === 'Normal' ? 'bg-emerald-100 text-emerald-800' :
+        cow.status === 'Waspada' ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'
+      }`;
+
+      document.getElementById('panel-content').innerHTML = `
+        <div class="space-y-3 text-left text-xs">
+          <img src="${cow.photo}" class="w-full h-28 rounded-xl object-cover border border-gray-200 dark:border-slate-700">
+          <div class="grid grid-cols-2 gap-2">
+            <div class="p-2 rounded-lg bg-gray-50 dark:bg-slate-900">
+              <span class="text-gray-400 text-[10px]">Suhu Tubuh</span>
+              <p class="font-bold text-gray-800 dark:text-white">${cow.temp} °C</p>
+            </div>
+            <div class="p-2 rounded-lg bg-gray-50 dark:bg-slate-900">
+              <span class="text-gray-400 text-[10px]">Detak Jantung</span>
+              <p class="font-bold text-gray-800 dark:text-white">${cow.heartRate} BPM</p>
+            </div>
+          </div>
+          <div class="p-2.5 rounded-lg bg-gray-50 dark:bg-slate-900">
+            <span class="text-gray-400 text-[10px]">Diagnosa Computer Vision:</span>
+            <p class="font-medium text-gray-700 dark:text-gray-300 mt-0.5">${cow.salivation !== 'Normal' ? 'Terdeteksi Salivasi' : 'Tidak ada lesi terdeteksi'}</p>
+          </div>
+        </div>
+      `;
+
+      const actions = document.getElementById('panel-actions');
+      actions.classList.remove('hidden');
+      document.getElementById('btn-goto-detail').onclick = () => {
+        loadCattleDetailView(cow.id);
+        switchPage('detail');
+      };
+    }
+
+    /* ==========================================================================
+       5. PAGE 3: DAFTAR TERNAK LOGIC
+       ========================================================================== */
+    function renderLivestockTable() {
+      const tbody = document.getElementById('livestock-table-body');
+      if (!tbody) return;
+
+      const searchVal = document.getElementById('table-search')?.value.toLowerCase() || '';
+      const filterStatus = document.getElementById('filter-status')?.value || 'ALL';
+      const filterBarn = document.getElementById('filter-barn')?.value || 'ALL';
+
+      // Filter
+      let filtered = COWS_DATA.filter(c => {
+        const matchSearch = c.id.includes(searchVal) || c.name.toLowerCase().includes(searchVal);
+        const matchStatus = filterStatus === 'ALL' || c.status === filterStatus;
+        const matchBarn = filterBarn === 'ALL' || c.barn === filterBarn;
+        return matchSearch && matchStatus && matchBarn;
+      });
+
+      // Sort
+      filtered.sort((a, b) => tableSortAsc ? a.id.localeCompare(b.id) : b.id.localeCompare(a.id));
+
+      // Pagination
+      const totalItems = filtered.length;
+      const totalPages = Math.ceil(totalItems / tablePageSize) || 1;
+      if (tableCurrentPage > totalPages) tableCurrentPage = totalPages;
+
+      const startIdx = (tableCurrentPage - 1) * tablePageSize;
+      const pageData = filtered.slice(startIdx, startIdx + tablePageSize);
+
+      tbody.innerHTML = pageData.map(cow => `
+        <tr onclick="loadCattleDetailView('${cow.id}'); switchPage('detail');" class="hover:bg-emerald-50/40 dark:hover:bg-slate-700/40 cursor-pointer transition-colors">
+          <td class="py-3 px-4">
+            <img src="${cow.photo}" class="w-9 h-9 rounded-xl object-cover border border-gray-200 dark:border-slate-700" alt="Sapi">
+          </td>
+          <td class="py-3 px-4 font-bold text-gray-800 dark:text-white">#${cow.id}</td>
+          <td class="py-3 px-4 font-medium text-gray-700 dark:text-gray-200">${cow.name}</td>
+          <td class="py-3 px-4 text-gray-500">${cow.barn}</td>
+          <td class="py-3 px-4 font-semibold ${cow.temp >= 39.5 ? 'text-red-600 font-bold' : 'text-gray-800 dark:text-gray-200'}">${cow.temp} °C</td>
+          <td class="py-3 px-4 text-gray-500">${cow.activitySteps} langkah</td>
+          <td class="py-3 px-4">
+            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold ${
+              cow.status === 'Normal' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' :
+              cow.status === 'Waspada' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' :
+              'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300'
+            }">${cow.status}</span>
+          </td>
+          <td class="py-3 px-4 text-center">
+            <button onclick="event.stopPropagation(); loadCattleDetailView('${cow.id}'); switchPage('detail');" class="p-1.5 rounded-lg text-brand-primary hover:bg-brand-soft dark:text-brand-accent dark:hover:bg-slate-700 transition-colors">
+              <i data-lucide="chevron-right" class="w-4 h-4"></i>
+            </button>
+          </td>
+        </tr>
+      `).join('');
+
+      document.getElementById('table-showing-info').innerText = `Menampilkan ${startIdx + 1}-${Math.min(startIdx + tablePageSize, totalItems)} dari ${totalItems} sapi`;
+      document.getElementById('page-num-display').innerText = `Halaman ${tableCurrentPage}`;
+      document.getElementById('btn-prev-page').disabled = tableCurrentPage === 1;
+      document.getElementById('btn-next-page').disabled = tableCurrentPage === totalPages;
+
+      lucide.createIcons();
+    }
+
+    function applyTableFilters() {
+      tableCurrentPage = 1;
+      renderLivestockTable();
+    }
+
+    function toggleSortOrder() {
+      tableSortAsc = !tableSortAsc;
+      document.getElementById('sort-label').innerText = `Urutan ID: ${tableSortAsc ? 'ASC' : 'DESC'}`;
+      renderLivestockTable();
+    }
+
+    function changePage(delta) {
+      tableCurrentPage += delta;
+      renderLivestockTable();
+    }
+
+    /* ==========================================================================
+       6. PAGE 4: DETAIL TERNAK LOGIC
+       ========================================================================== */
+    function loadCattleDetailView(id) {
+      currentSelectedCattleId = id;
+      const cow = COWS_DATA.find(c => c.id === id);
+      if (!cow) return;
+
+      document.getElementById('detail-name').innerText = `Sapi #${cow.id} (${cow.name})`;
+      document.getElementById('detail-avatar').src = cow.photo;
+      document.getElementById('detail-subtext').innerText = `ID Tag: RFID-${cow.id}992 | ${cow.barn} | Bangsa: Frisian Holstein`;
+
+      const statusPill = document.getElementById('detail-status-pill');
+      statusPill.innerText = cow.status;
+      statusPill.className = `px-3 py-0.5 rounded-full text-xs font-bold ${
+        cow.status === 'Normal' ? 'bg-emerald-100 text-emerald-800' :
+        cow.status === 'Waspada' ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'
+      }`;
+
+      // Update Live Telemetry Cards
+      document.getElementById('sensor-temp-val').innerText = `${cow.temp} °C`;
+      document.getElementById('temp-slider').value = cow.temp;
+      document.getElementById('sensor-hr-val').innerText = `${cow.heartRate} BPM`;
+      document.getElementById('sensor-act-val').innerText = `Sedang (${cow.activitySteps} langkah)`;
+      document.getElementById('sensor-rum-val').innerText = `${cow.ruminationMin} menit/hari`;
+
+      // Update Isolate Button Text
+      document.getElementById('isolate-btn-text').innerText = cow.isIsolated ? "Lepas Isolasi" : "Isolate Animal";
+
+      // Render History
+      const histContainer = document.getElementById('detail-medical-history');
+      histContainer.innerHTML = cow.history.map(h => `
+        <div class="relative pl-2">
+          <span class="text-[10px] font-bold text-brand-primary dark:text-brand-accent">${h.time}</span>
+          <p class="text-xs text-gray-700 dark:text-gray-300 font-medium mt-0.5">${h.event}</p>
+        </div>
+      `).join('');
+
+      // Draw Gauges & Visuals
+      drawRiskGauge(cow.riskScore);
+      drawAIStreamCanvas();
+    }
+
+    function updateCattleTempLive(newTemp) {
+      const cow = COWS_DATA.find(c => c.id === currentSelectedCattleId);
+      if (!cow) return;
+
+      cow.temp = parseFloat(newTemp);
+      document.getElementById('sensor-temp-val').innerText = `${cow.temp} °C`;
+
+      // Dynamically calculate risk score based on slider
+      if (cow.temp > 39.5) {
+        cow.status = "Risiko Tinggi";
+        cow.riskScore = Math.min(100, Math.floor(70 + (cow.temp - 39.5) * 15));
+      } else if (cow.temp > 38.8) {
+        cow.status = "Waspada";
+        cow.riskScore = Math.floor(40 + (cow.temp - 38.8) * 30);
+      } else {
+        cow.status = "Normal";
+        cow.riskScore = Math.floor(10 + Math.random() * 15);
+      }
+
+      const statusPill = document.getElementById('detail-status-pill');
+      statusPill.innerText = cow.status;
+      statusPill.className = `px-3 py-0.5 rounded-full text-xs font-bold ${
+        cow.status === 'Normal' ? 'bg-emerald-100 text-emerald-800' :
+        cow.status === 'Waspada' ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'
+      }`;
+
+      drawRiskGauge(cow.riskScore);
+      updateKPICards();
+      renderLivestockTable();
+    }
+
+    function toggleIsolateCurrentCattle() {
+      const cow = COWS_DATA.find(c => c.id === currentSelectedCattleId);
+      if (!cow) return;
+
+      const actionText = cow.isIsolated ? "melepas isolasi" : "mengisolasi";
+      openModal(
+        "Konfirmasi Isolasi Ternak",
+        `Apakah Anda yakin ingin ${actionText} Sapi #${cow.id} (${cow.name})?`,
+        () => {
+          cow.isIsolated = !cow.isIsolated;
+          if (cow.isIsolated) {
+            cow.status = "Risiko Tinggi";
+            cow.history.unshift({ time: "Baru Saja", event: "Ternak dipindahkan ke Kandang D (Ruang Isolasi Medis)." });
+          }
+          loadCattleDetailView(cow.id);
+          updateKPICards();
+          renderLivestockTable();
+          showToast(`Status Sapi #${cow.id} berhasil diperbarui!`, 'success');
+        }
+      );
+    }
+
+    function triggerCallVet() {
+      showToast(`Panggilan Darurat terkirim ke Dr. Eye untuk Sapi #${currentSelectedCattleId}!`, 'success');
+    }
+
+    /* ==========================================================================
+       7. CANVAS GRAPHICS & AI DRAWINGS
+       ========================================================================== */
+    // Draw Bounding Boxes on AI Camera Stream
+    function drawAIStreamCanvas() {
+      const canvas = document.getElementById('aiVisionCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const cow = COWS_DATA.find(c => c.id === currentSelectedCattleId);
+      const isHighRisk = cow && cow.status === 'Risiko Tinggi';
+
+      // Draw Main Bounding Box
+      const boxColor = isHighRisk ? '#D62828' : '#2A9D8F';
+      ctx.strokeStyle = boxColor;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(60, 40, canvas.width - 120, canvas.height - 90);
+
+      // Label background
+      ctx.fillStyle = boxColor;
+      ctx.fillRect(60, 15, 180, 25);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 11px Inter, sans-serif';
+      ctx.fillText(`CATTLEYE-AI #${currentSelectedCattleId} (96.4%)`, 68, 32);
+
+      // Secondary box for Mouth/Salivation if alert
+      if (isHighRisk) {
+        ctx.strokeStyle = '#F4A261';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.strokeRect(canvas.width / 2 - 40, canvas.height / 2 - 20, 80, 60);
+        ctx.setLineDash([]);
+
+        ctx.fillStyle = '#F4A261';
+        ctx.fillRect(canvas.width / 2 - 40, canvas.height / 2 - 40, 110, 20);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 10px Inter';
+        ctx.fillText('Hyper Salivation Area', canvas.width / 2 - 35, canvas.height / 2 - 26);
+      }
+    }
+
+    // Circular Risk Score Gauge
+    function drawRiskGauge(score) {
+      const canvas = document.getElementById('riskGaugeCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+
+      canvas.width = 160;
+      canvas.height = 160;
+      ctx.clearRect(0, 0, 160, 160);
+
+      const centerX = 80;
+      const centerY = 80;
+      const radius = 65;
+
+      // Background Circle
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+      ctx.strokeStyle = '#E2E8F0';
+      ctx.lineWidth = 12;
+      ctx.stroke();
+
+      // Score Arc
+      const startAngle = -0.5 * Math.PI;
+      const endAngle = startAngle + (score / 100) * (2 * Math.PI);
+
+      let color = '#2A9D8F'; // Normal
+      if (score >= 40 && score < 75) color = '#F4A261'; // Waspada
+      if (score >= 75) color = '#D62828'; // Risk
+
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 12;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+
+      document.getElementById('gauge-score-val').innerText = score;
+      const desc = document.getElementById('gauge-score-desc');
+      if (desc) {
+        desc.innerText = score < 40 ? "Status Kesehatan Optimal" : score < 75 ? "Potensi Masalah Kesehatan Terdeteksi" : "PERINGATAN BAHAYA: Perlu Penanganan!";
+      }
+    }
+
+    // Canvas Chart 1: 7-Day Overview
+    function initOverviewChart() {
+      const canvas = document.getElementById('overviewChart');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+
+      const days = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
+      const temps = [38.2, 38.4, 38.3, 38.7, 38.6, 39.1, 38.8];
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw Grid Lines
+      ctx.strokeStyle = '#E2E8F0';
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 4; i++) {
+        const y = 30 + i * 50;
+        ctx.beginPath();
+        ctx.moveTo(40, y);
+        ctx.lineTo(canvas.width - 20, y);
+        ctx.stroke();
+      }
+
+      // Draw Line
+      ctx.beginPath();
+      ctx.strokeStyle = '#1B4332';
+      ctx.lineWidth = 3;
+
+      const stepX = (canvas.width - 80) / (days.length - 1);
+      temps.forEach((t, idx) => {
+        const x = 40 + idx * stepX;
+        const y = 200 - (t - 37.5) * 80;
+        if (idx === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+
+      // Draw Points & Labels
+      temps.forEach((t, idx) => {
+        const x = 40 + idx * stepX;
+        const y = 200 - (t - 37.5) * 80;
+
+        ctx.fillStyle = '#2D6A4F';
+        ctx.beginPath();
+        ctx.arc(x, y, 5, 0, 2 * Math.PI);
+        ctx.fill();
+
+        ctx.fillStyle = '#64748B';
+        ctx.font = '10px Inter';
+        ctx.fillText(days[idx], x - 10, canvas.height - 10);
+      });
+    }
+
+    // Canvas Chart 2: 24h Detail Chart
+    function init24hDetailChart() {
+      const canvas = document.getElementById('detail24hChart');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.strokeStyle = '#95D5B2';
+      ctx.lineWidth = 2.5;
+
+      ctx.beginPath();
+      for (let i = 0; i < 24; i++) {
+        const x = 30 + i * ((canvas.width - 50) / 23);
+        const y = 160 - Math.sin(i * 0.3) * 30 - Math.random() * 15;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+
+    // Analytics Dashboard Canvas Charts
+    function renderAnalyticsCharts() {
+      // 30-Day Temp Trend Chart
+      const c1 = document.getElementById('analyticsTempChart');
+      if (c1) {
+        const ctx = c1.getContext('2d');
+        c1.width = c1.offsetWidth;
+        c1.height = c1.offsetHeight;
+        ctx.clearRect(0, 0, c1.width, c1.height);
+
+        ctx.strokeStyle = '#2D6A4F';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        for (let i = 0; i < 30; i++) {
+          const x = 20 + i * ((c1.width - 40) / 29);
+          const y = 140 - Math.sin(i * 0.4) * 40 - Math.random() * 10;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+
+      // Donut Chart
+      const cDonut = document.getElementById('analyticsDonutChart');
+      if (cDonut) {
+        const ctx = cDonut.getContext('2d');
+        cDonut.width = cDonut.offsetWidth;
+        cDonut.height = cDonut.offsetHeight;
+        ctx.clearRect(0, 0, cDonut.width, cDonut.height);
+
+        const cx = cDonut.width / 2;
+        const cy = cDonut.height / 2;
+        const r = 55;
+
+        // Normal slice (75%)
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, 1.5 * Math.PI);
+        ctx.strokeStyle = '#2A9D8F';
+        ctx.lineWidth = 18;
+        ctx.stroke();
+
+        // Waspada slice (17%)
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 1.5 * Math.PI, 1.85 * Math.PI);
+        ctx.strokeStyle = '#F4A261';
+        ctx.lineWidth = 18;
+        ctx.stroke();
+
+        // Risk slice (8%)
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 1.85 * Math.PI, 2 * Math.PI);
+        ctx.strokeStyle = '#D62828';
+        ctx.lineWidth = 18;
+        ctx.stroke();
+      }
+
+      // Barn Bar Chart
+      const cBar = document.getElementById('analyticsBarChart');
+      if (cBar) {
+        const ctx = cBar.getContext('2d');
+        cBar.width = cBar.offsetWidth;
+        cBar.height = cBar.offsetHeight;
+        ctx.clearRect(0, 0, cBar.width, cBar.height);
+
+        const barns = ["Kandang A", "Kandang B", "Kandang C", "Kandang D"];
+        const counts = [2, 3, 1, 4];
+        const barW = 40;
+
+        barns.forEach((b, idx) => {
+          const x = 40 + idx * 100;
+          const h = counts[idx] * 35;
+          const y = cBar.height - 40 - h;
+
+          ctx.fillStyle = '#1B4332';
+          ctx.fillRect(x, y, barW, h);
+
+          ctx.fillStyle = '#64748B';
+          ctx.font = '10px Inter';
+          ctx.fillText(b, x - 5, cBar.height - 15);
+        });
+      }
+
+      // Activity Heatmap Chart
+      const cHeat = document.getElementById('analyticsHeatmapChart');
+      if (cHeat) {
+        const ctx = cHeat.getContext('2d');
+        cHeat.width = cHeat.offsetWidth;
+        cHeat.height = cHeat.offsetHeight;
+        ctx.clearRect(0, 0, cHeat.width, cHeat.height);
+
+        const cols = 12;
+        const rows = 4;
+        const cellW = (cHeat.width - 40) / cols;
+        const cellH = (cHeat.height - 40) / rows;
+
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const val = Math.random();
+            ctx.fillStyle = val > 0.7 ? '#1B4332' : val > 0.4 ? '#52B788' : '#D8F3DC';
+            ctx.fillRect(20 + c * cellW, 10 + r * cellH, cellW - 4, cellH - 4);
+          }
+        }
+      }
+    }
+
+    /* ==========================================================================
+       8. GLOBAL SEARCH & INTERACTIVE CONTROLS
+       ========================================================================== */
+    function handleGlobalSearch(query) {
+      if (!query.trim()) return;
+      switchPage('livestock');
+      const input = document.getElementById('table-search');
+      if (input) {
+        input.value = query;
+        applyTableFilters();
+      }
+    }
+
+    function toggleDarkMode(isDark) {
+      if (isDark) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+      showToast(`Tema berhasil diubah ke ${isDark ? 'Dark Mode' : 'Light Mode'}`, 'info');
+    }
+
+    /* ==========================================================================
+       9. MODAL & TOAST SYSTEM
+       ========================================================================== */
+    function openModal(title, msg, onConfirm) {
+      document.getElementById('modal-title').innerText = title;
+      document.getElementById('modal-message').innerText = msg;
+      pendingModalAction = onConfirm;
+      document.getElementById('app-modal').classList.remove('hidden');
+      document.getElementById('app-modal').classList.add('flex');
+    }
+
+    function closeModal() {
+      document.getElementById('app-modal').classList.add('hidden');
+      document.getElementById('app-modal').classList.remove('flex');
+      pendingModalAction = null;
+    }
+
+    function executeModalAction() {
+      if (pendingModalAction) pendingModalAction();
+      closeModal();
+    }
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+
+      const toast = document.createElement('div');
+      let bgColor = 'bg-slate-900 text-white';
+      if (type === 'success') bgColor = 'bg-emerald-700 text-white';
+      if (type === 'danger') bgColor = 'bg-red-700 text-white';
+
+      toast.className = `px-4 py-3 rounded-xl shadow-xl text-xs font-semibold ${bgColor} flex items-center gap-3 animate-in slide-in-from-bottom-3 duration-200 pointer-events-auto`;
+      toast.innerHTML = `
+        <i data-lucide="info" class="w-4 h-4 shrink-0"></i>
+        <span>${message}</span>
+      `;
+
+      container.appendChild(toast);
+      lucide.createIcons();
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'transition-opacity');
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+  </script>
+</body>
+</html>

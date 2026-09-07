@@ -1,0 +1,32 @@
+# ============================================================
+# Dockerfile - Deteksi PMK Sapi (Streamlit App)
+# ============================================================
+
+FROM python:3.11-slim
+
+# Supaya TensorFlow & Pillow bisa build/berjalan tanpa masalah
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgl1 \
+    libglib2.0-0 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install dependencies dulu (biar layer ini di-cache kalau cuma app.py yang berubah)
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy source code + model + labels
+# (fmd_cattle_model.keras dan labels.txt harus ada di folder ini sebelum build,
+#  atau di-mount lewat volume saat run - lihat README_DOCKER.md)
+COPY . .
+
+EXPOSE 8501
+
+HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health || exit 1
+
+ENTRYPOINT ["streamlit", "run", "app.py", \
+    "--server.port=8501", \
+    "--server.address=0.0.0.0", \
+    "--server.headless=true"]
