@@ -1,0 +1,7 @@
+fastapi
+uvicorn[standard]
+paho-mqtt
+opencv-python-headless
+numpy
+requests
+tensorflow
