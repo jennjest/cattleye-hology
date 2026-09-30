@@ -87,6 +87,9 @@ void setup()
     // I2C
     Wire.begin(8, 9);
 
+    WiFi.mode(WIFI_STA);
+    WiFi.setTxPower(WIFI_POWER_8_5dBm);
+
     // WiFi
     setup_wifi();
 
