@@ -1,0 +1,67 @@
+# Build context exclusions.
+#
+# vendor, node_modules and public/build are absent because the Dockerfile
+# produces them; sending them would bust cache on every build and can leak a
+# laptop's stale artifacts into the image.
+#
+# .env is deliberately excluded so no real secret can ever be baked into a
+# layer. The Dockerfile stages synthesise a throwaway .env from .env.example
+# only for `artisan package:discover`.
+
+.git
+.github
+.gitignore
+
+.env
+.env.backup
+.env.production
+.env.docker
+
+node_modules
+vendor
+public/build
+public/hot
+public/storage
+public/fonts-manifest.dev.json
+
+bootstrap/ssr
+resources/js/actions
+resources/js/routes
+resources/js/wayfinder
+
+storage/app/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/logs/*
+storage/pail
+
+tests
+.phpunit.cache
+.phpunit.result.cache
+.phpstan.cache
+phpstan.neon
+phpstan.neon.dist
+
+.claude
+.cursor
+.agents
+.idea
+.vscode
+.zed
+.amp
+.junie
+.grok
+.kiro
+.pi
+.mcp.json
+AGENTS.md
+CLAUDE.md
+boost.json
+opencode.json
+opencode.jsonc
+
+npm-debug.log
+yarn-error.log
+.DS_Store
+*.log
