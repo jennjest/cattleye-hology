@@ -93,6 +93,9 @@ services:
           memory: 320M
 
   queue:
+    build:
+      context: .
+      target: runtime
     image: cattleye/app:latest
     restart: unless-stopped
     <<: *app-env
