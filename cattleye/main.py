@@ -4,7 +4,7 @@ CATTLEYE - backend edge (Raspberry Pi)
 Alur: wearable (MQTT) + kamera (ESP32-CAM) -> sensor fusion FUZZY -> API FastAPI
 
 Input fuzzy:
-  suhu      (°C, dikoreksi TEMP_OFFSET)          range 30-45
+  suhu      (°C, dikoreksi temp_offset)          range 30-45
   aktivitas (skor 0-100, relatif terhadap baseline sapi)
   visual    (probabilitas PMK dari CNN, 0-1)
 Output: skor risiko 0-100 -> Normal / Waspada / Berisiko Tinggi
@@ -17,6 +17,21 @@ import requests
 import cv2
 import numpy as np
 import paho.mqtt.client as mqtt
+
+import os
+
+# .env dimuat sebelum modul lain karena fusion_settings.py dan settings_sync.py
+# membaca os.environ saat diimpor. File yang tidak ada bukan error: konfigurasi
+# bisa juga berasal dari systemd atau shell.
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except ImportError:
+    pass
+
+import fusion_settings
+import settings_sync
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse, JSONResponse
 import uvicorn
@@ -24,12 +39,14 @@ import uvicorn
 # ======================
 # KONFIGURASI
 # ======================
-MQTT_BROKER = "broker.hivemq.com"
-MQTT_PORT = 1883
-MQTT_TOPIC = "cattleye/cow01/wearable"
-MQTT_CLIENT_ID = "cattleye-pi-001"
+MQTT_BROKER = os.environ.get("CATTLEYE_MQTT_BROKER", "broker.hivemq.com")
+MQTT_PORT = int(os.environ.get("CATTLEYE_MQTT_PORT", "1883"))
+# Topik MQTT memuat kode sapi, jadi bridge_to_laravel.py dan Pi harus cocok
+# dengan kode yang sama. Lihat CATTLEYE_COW_CODE di .env.example.
+MQTT_TOPIC = f"cattleye/{os.environ.get('CATTLEYE_COW_CODE', 'cow01')}/wearable"
+MQTT_CLIENT_ID = os.environ.get("CATTLEYE_MQTT_CLIENT_ID", "cattleye-pi-001")
 
-ESP32CAM_URL = "http://192.168.1.127/"   # sesuaikan (biasanya endpoint stream: http://IP:81/stream)
+ESP32CAM_URL = os.environ.get("ESP32CAM_URL", "http://192.168.1.127/")
 MODEL_PATH = "models/fmd_cattle_model.tflite"
 # Ukuran input model dibaca otomatis dari file .tflite (lihat bagian LOAD TFLITE)
 
@@ -39,31 +56,10 @@ PMK_INDEX = CLASSES.index("PMK")
 
 INFERENCE_EVERY_N_FRAMES = 5
 
-# --- Suhu ---
-# MLX90614 di kalung membaca suhu PERMUKAAN, bukan suhu tubuh inti.
-# Isi offset hasil kalibrasi (suhu inti - suhu permukaan). Nilai 0.0 = belum dikalibrasi.
-TEMP_OFFSET = 0.0
-
-# --- IMU ---
 ACCEL_TO_G = 1.0 / 9.80665       # firmware mengirim m/s² (az ~ 9.81 saat diam). Isi 1.0 jika sudah g
-ACTIVITY_WINDOW_SEC = 30         # firmware publish 1 Hz -> window 30 dtk = ~30 sampel
-ACTIVITY_MIN_SAMPLES = 10        # minimal sampel dalam window
-ACTIVITY_SCORE_NORMAL = 70.0     # skor aktivitas ketika r = 1 (sama dengan baseline)
-
-ACTIVITY_BASELINE_DEFAULT = 0.05   # std magnitudo (g) awal -> WAJIB dikalibrasi dari rekaman sensor asli
-BASELINE_WARMUP_WINDOWS = 10       # 10 window x 30 dtk = 5 menit (untuk demo)
-BASELINE_ALPHA = 0.002             # kecepatan baseline mengikuti kebiasaan sapi (EMA)
-BASELINE_UPDATE_MIN_RATIO = 0.6    # window yang sangat lesu TIDAK dipakai memperbarui baseline
 MIN_BASELINE = 1e-3
 
 # --- Data basi ---
-WEARABLE_STALE_SEC = 30
-VISION_STALE_SEC = 30
-FUSION_INTERVAL_SEC = 1.0
-
-# --- Label dari skor risiko ---
-THRESH_WASPADA = 33
-THRESH_TINGGI = 60
 
 # ======================
 # STATE GLOBAL
@@ -78,7 +74,7 @@ latest_state = {
     },
     "activity": {
         "std_g": None, "ratio": None, "score": None,
-        "baseline": ACTIVITY_BASELINE_DEFAULT,
+        "baseline": fusion_settings.setting("baseline_default"),
         "baseline_ready": False, "samples": 0
     },
     "vision": {
@@ -100,7 +96,7 @@ latest_frame = None
 
 # buffer IMU & baseline (diakses di dalam state_lock)
 imu_buffer = collections.deque()   # (timestamp, magnitudo_g)
-baseline = {"value": ACTIVITY_BASELINE_DEFAULT, "sum": 0.0, "windows": 0,
+baseline = {"value": fusion_settings.setting("baseline_default"), "sum": 0.0, "windows": 0,
             "ready": False, "last_update": 0.0}
 
 # ======================
@@ -261,41 +257,42 @@ def fuzzy_infer(suhu, aktivitas, visual):
 def push_imu_sample(t, ax, ay, az):
     mag = ((ax * ax + ay * ay + az * az) ** 0.5) * ACCEL_TO_G
     imu_buffer.append((t, mag))
-    cutoff = t - ACTIVITY_WINDOW_SEC
+    cutoff = t - fusion_settings.setting("activity_window_sec")
     while imu_buffer and imu_buffer[0][0] < cutoff:
         imu_buffer.popleft()
 
 def update_baseline(A, now):
     """Dipanggil maksimal sekali per window."""
-    if now - baseline["last_update"] < ACTIVITY_WINDOW_SEC:
+    if now - baseline["last_update"] < fusion_settings.setting("activity_window_sec"):
         return
     baseline["last_update"] = now
     if not baseline["ready"]:
         baseline["sum"] += A
         baseline["windows"] += 1
-        if baseline["windows"] >= BASELINE_WARMUP_WINDOWS:
+        if baseline["windows"] >= fusion_settings.setting("baseline_warmup_windows"):
             baseline["value"] = max(baseline["sum"] / baseline["windows"], MIN_BASELINE)
             baseline["ready"] = True
-    elif A >= BASELINE_UPDATE_MIN_RATIO * baseline["value"]:
-        baseline["value"] = (1 - BASELINE_ALPHA) * baseline["value"] + BASELINE_ALPHA * A
+    elif A >= fusion_settings.setting("baseline_update_min_ratio") * baseline["value"]:
+        alpha = fusion_settings.setting("baseline_alpha")
+        baseline["value"] = (1 - alpha) * baseline["value"] + alpha * A
 
 def update_activity(now):
     """
     Std magnitudo akselerasi pada window terakhir, dibanding baseline sapi.
     (Magnitudo mentah ~1 g saat diam maupun bergerak, jadi yang informatif adalah variasinya.)
     """
-    cutoff = now - ACTIVITY_WINDOW_SEC
+    cutoff = now - fusion_settings.setting("activity_window_sec")
     mags = [m for (t, m) in imu_buffer if t >= cutoff]
     info = {"std_g": None, "ratio": None, "score": None,
             "baseline": round(baseline["value"], 5),
             "baseline_ready": baseline["ready"], "samples": len(mags)}
-    if len(mags) < ACTIVITY_MIN_SAMPLES:
+    if len(mags) < fusion_settings.setting("activity_min_samples"):
         return info
 
     A = float(np.std(mags))
     update_baseline(A, now)
     r = A / max(baseline["value"], MIN_BASELINE)
-    score = min(100.0, max(0.0, ACTIVITY_SCORE_NORMAL * r))
+    score = min(100.0, max(0.0, fusion_settings.setting("activity_score_normal") * r))
     info.update({"std_g": round(A, 5), "ratio": round(r, 3), "score": round(score, 1),
                  "baseline": round(baseline["value"], 5)})
     return info
@@ -303,7 +300,10 @@ def update_activity(now):
 # ======================
 # SENSOR FUSION
 # ======================
-NETRAL = {"suhu": 38.5, "aktivitas": ACTIVITY_SCORE_NORMAL, "visual": 0.0}
+# "aktivitas" diambil lewat fusion_settings.setting() saat dipakai: NETRAL tidak boleh beku
+# pada nilai lama kalau operator mengubah skor aktivitas normal.
+NETRAL_SUHU = 38.5
+NETRAL_VISUAL = 0.0
 
 def sensor_fusion(wearable, vision, activity, now=None):
     now = now or time.time()
@@ -313,8 +313,8 @@ def sensor_fusion(wearable, vision, activity, now=None):
     # --- suhu (harus segar)
     suhu = None
     ts = wearable.get("timestamp")
-    if wearable.get("temperature") is not None and ts is not None and now - ts <= WEARABLE_STALE_SEC:
-        suhu = wearable["temperature"] + TEMP_OFFSET
+    if wearable.get("temperature") is not None and ts is not None and now - ts <= fusion_settings.setting("wearable_stale_sec"):
+        suhu = wearable["temperature"] + fusion_settings.setting("temp_offset")
     else:
         missing.append("suhu")
 
@@ -326,7 +326,7 @@ def sensor_fusion(wearable, vision, activity, now=None):
     # --- visual (pakai probabilitas PMK, bukan label argmax)
     p_pmk = None
     vts = vision.get("timestamp")
-    if vision.get("p_pmk") is not None and vts is not None and now - vts <= VISION_STALE_SEC:
+    if vision.get("p_pmk") is not None and vts is not None and now - vts <= fusion_settings.setting("vision_stale_sec"):
         p_pmk = vision["p_pmk"]
     else:
         missing.append("visual")
@@ -341,9 +341,9 @@ def sensor_fusion(wearable, vision, activity, now=None):
                 "missing": missing, "inputs": inputs, "timestamp": now}
 
     skor, fired = fuzzy_infer(
-        suhu if suhu is not None else NETRAL["suhu"],
-        aktivitas if aktivitas is not None else NETRAL["aktivitas"],
-        p_pmk if p_pmk is not None else NETRAL["visual"],
+        suhu if suhu is not None else NETRAL_SUHU,
+        aktivitas if aktivitas is not None else fusion_settings.setting("activity_score_normal"),
+        p_pmk if p_pmk is not None else NETRAL_VISUAL,
     )
 
     # alasan = rule non-Normal yang paling kuat
@@ -353,9 +353,9 @@ def sensor_fusion(wearable, vision, activity, now=None):
     for m in missing:
         reasons.append(f"Data {m} tidak tersedia (dianggap netral)")
 
-    if skor < THRESH_WASPADA:
+    if skor < fusion_settings.setting("waspada_threshold"):
         status = "Normal"
-    elif skor < THRESH_TINGGI:
+    elif skor < fusion_settings.setting("tinggi_threshold"):
         status = "Waspada"
     else:
         status = "Berisiko Tinggi"
@@ -380,7 +380,7 @@ def refresh_risk():
 def fusion_thread():
     """Hitung ulang berkala supaya data basi terdeteksi walau tidak ada pesan baru."""
     while True:
-        time.sleep(FUSION_INTERVAL_SEC)
+        time.sleep(fusion_settings.setting("fusion_interval_sec"))
         with state_lock:
             refresh_risk()
 
@@ -534,15 +534,45 @@ def api_data():
     with state_lock:
         return JSONResponse(content=latest_state)
 
+@app.get("/api/settings")
+def api_settings():
+    """Settings fusion yang SEDANG dipakai Pi.
+
+    Halaman settings di server membacanya supaya nilai yang tersimpan tidak
+    pernah disalahartikan sebagai nilai yang sudah aktif di lapangan.
+    """
+    return {
+        "settings": fusion_settings.snapshot(),
+        "source": fusion_settings.source(),
+        "defaults": fusion_settings.DEFAULT_SETTINGS,
+    }
+
+@app.post("/api/settings")
+def api_settings_apply(payload: dict):
+    """Terapkan settings dari server.
+
+    Dipakai bridge/alat bantu untuk 확인 cepat tanpa harus menyalakan ulang Pi.
+    Nilai di luar rentang ditolak satu per satu, bukan membatalkan semuanya.
+    """
+    berubah = fusion_settings.apply_settings(payload, sumber="api")
+
+    return {
+        "status": "diterapkan",
+        "berubah": berubah or {},
+        "settings": fusion_settings.snapshot(),
+        "source": fusion_settings.source(),
+    }
+
 @app.post("/api/reset_baseline")
 def api_reset_baseline():
     """Mulai ulang kalibrasi baseline. Panggil saat sapi dalam kondisi normal."""
     with state_lock:
-        baseline.update({"value": ACTIVITY_BASELINE_DEFAULT, "sum": 0.0, "windows": 0,
+        baseline.update({"value": fusion_settings.setting("baseline_default"), "sum": 0.0, "windows": 0,
                          "ready": False, "last_update": 0.0})
         imu_buffer.clear()
-    return {"status": "baseline di-reset", "warmup_windows": BASELINE_WARMUP_WINDOWS,
-            "estimasi_detik": BASELINE_WARMUP_WINDOWS * ACTIVITY_WINDOW_SEC}
+    windows = fusion_settings.setting("baseline_warmup_windows")
+    return {"status": "baseline di-reset", "warmup_windows": windows,
+            "estimasi_detik": int(windows * fusion_settings.setting("activity_window_sec"))}
 
 def gen_frames():
     while True:
@@ -579,5 +609,16 @@ if __name__ == "__main__":
     threading.Thread(target=mqtt_thread, daemon=True).start()
     threading.Thread(target=camera_thread, daemon=True).start()
     threading.Thread(target=fusion_thread, daemon=True).start()
+
+    # Ambang fusion diambil dari server supaya operator bisa mengubahnya dari
+    # browser. Gagalnya request tidak menghentikan apa pun: Pi jalan dengan
+    # nilai terakhir, atau dengan DEFAULT_SETTINGS kalau belum pernah dapat.
+    #
+    # apply_dari_server() yang dipakai, bukan apply_settings() langsung, karena
+    # loop butuh tahu "diterima atau ditolak". apply_settings() mengembalikan
+    # None saat tidak ada yang berubah, jadi payload yang isinya sama dengan
+    # settings sekarang akan disalahartikan sebagai penolakan dan diulang tiap
+    # 30 detik.
+    settings_sync.start(lambda baru: fusion_settings.apply_dari_server(baru)[0])
 
     uvicorn.run(app, host="0.0.0.0", port=8000)
