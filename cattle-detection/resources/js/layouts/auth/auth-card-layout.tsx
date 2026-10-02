@@ -1,6 +1,6 @@
 import { Link } from '@inertiajs/react';
 import type { PropsWithChildren } from 'react';
-import AppLogoIcon from '@/components/app-logo-icon';
+import { Eye } from 'lucide-react';
 import {
     Card,
     CardContent,
@@ -20,14 +20,22 @@ export default function AuthCardLayout({
     description?: string;
 }>) {
     return (
-        <div className="flex min-h-svh flex-col items-center justify-center gap-6 bg-muted p-6 md:p-10">
+        <div className="flex min-h-svh flex-col items-center justify-center gap-6 bg-background p-6 md:p-10">
             <div className="flex w-full max-w-md flex-col gap-6">
                 <Link
                     href={dashboard()}
-                    className="flex items-center gap-2 self-center font-medium"
+                    className="group flex flex-col items-center gap-2.5 self-center font-medium transition-transform hover:scale-105"
                 >
-                    <div className="flex h-9 w-9 items-center justify-center">
-                        <AppLogoIcon className="size-9 fill-current text-black dark:text-white" />
+                    <span className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-accent to-brand-light text-brand-dark shadow-md">
+                        <Eye className="size-7" strokeWidth={2.5} />
+                    </span>
+                    <div className="flex flex-col items-center text-center">
+                        <span className="block text-xl leading-none font-bold tracking-tight text-foreground">
+                            CATTLEYE
+                        </span>
+                        <span className="mt-1 block text-[9px] font-semibold tracking-wider text-brand-secondary dark:text-brand-accent uppercase">
+                            Cow Disease Detection
+                        </span>
                     </div>
                 </Link>
 
