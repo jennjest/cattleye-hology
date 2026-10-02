@@ -21,6 +21,8 @@ return Application::configure(basePath: dirname(__DIR__))
     // because discovery and a manual registration both found it.
     ->withEvents(discover: false)
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->trustProxies(at: '*');
+
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
         $middleware->web(append: [

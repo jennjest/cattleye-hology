@@ -74,7 +74,7 @@ export default function CowFormDialog({
                     <DialogDescription>
                         Kode sapi dipakai sebagai kunci oleh Raspberry Pi, topik
                         MQTT, dan nama file ekspor CSV. Mengubahnya setelah data
-                        terkumpul berarti data lama tidak lagi ikut terelompok.
+                        terkumpul berarti data lama tidak lagi ikut terkelompok.
                     </DialogDescription>
                 </DialogHeader>
 
