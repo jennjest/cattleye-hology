@@ -1,4 +1,8 @@
-import { NO_DATA_STATUS, type CowSummary, type RiskStatusValue } from '@/types/telemetry';
+import {
+    NO_DATA_STATUS,
+    type CowSummary,
+    type RiskStatusValue,
+} from '@/types/telemetry';
 
 /**
  * Aggregation helpers for the cow list.
@@ -31,6 +35,11 @@ export function countByRiskStatus(cows: CowSummary[]): CowCounts {
     }
 
     return counts;
+}
+
+/** Only the red tier, for the notification bell and the alert timeline. */
+export function needsAttention(cow: CowSummary): boolean {
+    return riskStatusOf(cow) === 'Berisiko Tinggi';
 }
 
 /** Highest score first, then lowest risk rank, then cow code. */

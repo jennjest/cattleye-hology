@@ -22,6 +22,11 @@ class CowPageController extends Controller
     {
         return Inertia::render('cows/show', [
             'snapshot' => CowSnapshot::forCow($cow, $this->monitoring),
+            // Zero-based position in the code-ordered herd, so the client can
+            // derive the same pen the map shows without a second request.
+            'ordinal' => $cow->newQuery()
+                ->where('code', '<=', $cow->code)
+                ->count() - 1,
         ]);
     }
 }

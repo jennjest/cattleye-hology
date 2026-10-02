@@ -1,9 +1,13 @@
 import { Head } from '@inertiajs/react';
+import { Activity } from 'lucide-react';
 import { useState } from 'react';
-import Heading from '@/components/heading';
 import CowCard from '@/components/monitoring/cow-card';
 import LiveCamera from '@/components/monitoring/live-camera';
-import { EmptyState, ErrorState, LoadingState } from '@/components/monitoring/data-state';
+import {
+    EmptyState,
+    ErrorState,
+    LoadingState,
+} from '@/components/monitoring/data-state';
 import RefreshControls from '@/components/monitoring/refresh-controls';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -52,26 +56,36 @@ export default function Monitoring() {
 
     // The camera state is polled on a slower beat than the cow grid: the feed
     // itself is continuous, so this only refreshes the readouts beside it.
-    const camera = usePollingResource((signal) => cameraService.status(signal), {
-        intervalMs: 15_000,
-        cacheKey: 'edge-camera',
-    });
+    const camera = usePollingResource(
+        (signal) => cameraService.status(signal),
+        {
+            intervalMs: 15_000,
+            cacheKey: 'edge-camera',
+        },
+    );
 
     return (
         <>
             <Head title="Monitoring" />
 
-            <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
+            <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto p-4 md:p-6">
                 <div className="flex flex-wrap items-end justify-between gap-3">
-                    <Heading
-                        title="Monitoring"
-                        description="Pantauan langsung kondisi setiap sapi. Data disegarkan otomatis dari Raspberry Pi."
-                        className="mb-0"
-                    />
+                    <div>
+                        <h1 className="flex items-center gap-2 text-lg font-bold text-gray-800 dark:text-white">
+                            <Activity className="size-5 text-brand-primary dark:text-brand-accent" />
+                            Monitoring Langsung
+                        </h1>
+                        <p className="text-xs text-gray-500">
+                            Pantauan langsung kondisi setiap sapi. Data
+                            disegarkan otomatis dari Raspberry Pi.
+                        </p>
+                    </div>
                     <div className="flex flex-wrap items-center gap-3">
                         <Select
                             value={String(intervalMs)}
-                            onValueChange={(value) => setIntervalMs(Number(value))}
+                            onValueChange={(value) =>
+                                setIntervalMs(Number(value))
+                            }
                         >
                             <SelectTrigger className="w-32">
                                 <SelectValue />

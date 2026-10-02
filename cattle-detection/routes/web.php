@@ -1,8 +1,10 @@
 <?php
 
+use App\Http\Controllers\Api\AnalyticsController;
 use App\Http\Controllers\Api\CowController;
 use App\Http\Controllers\Api\CowHistoryExportController;
 use App\Http\Controllers\Api\EdgeCameraController;
+use App\Http\Controllers\CattleDetailPageController;
 use App\Http\Controllers\CowPageController;
 use App\Http\Controllers\CowsController;
 use Illuminate\Support\Facades\Route;
@@ -17,6 +19,13 @@ Route::redirect('/', '/dashboard');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('dashboard', 'dashboard')->name('dashboard');
+    Route::inertia('peta-kandang', 'barn-map')->name('barn-map.index');
+    Route::inertia('analitik', 'analytics')->name('analytics.index');
+
+    // Standalone detail view for the sidebar entry, which has no cow in the
+    // URL. It resolves to `?cow=` when given, otherwise to the first cow.
+    Route::get('detail', [CattleDetailPageController::class, 'show'])
+        ->name('detail.index');
 
     Route::get('cows', [CowsController::class, 'index'])->name('cows.index');
 
@@ -50,6 +59,10 @@ Route::middleware(['auth', 'verified'])->prefix('api')->group(function () {
 
     // Live view of the Raspberry Pi: MJPEG URL plus its current fusion state.
     Route::get('/edge/camera', [EdgeCameraController::class, 'show'])->name('api.edge.camera');
+
+    // Herd-wide aggregates behind the analytics dashboard.
+    Route::get('/analytics/summary', [AnalyticsController::class, 'summary'])
+        ->name('api.analytics.summary');
 });
 
 /*

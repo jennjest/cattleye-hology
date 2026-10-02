@@ -1,13 +1,16 @@
 import { Head } from '@inertiajs/react';
-import { DownloadIcon } from 'lucide-react';
+import { DownloadIcon, History as HistoryIcon } from 'lucide-react';
 import { useState } from 'react';
-import Heading from '@/components/heading';
-import { EmptyState, ErrorState, LoadingState } from '@/components/monitoring/data-state';
+import {
+    EmptyState,
+    ErrorState,
+    LoadingState,
+} from '@/components/monitoring/data-state';
 import LineChart from '@/components/monitoring/line-chart';
 import RefreshControls from '@/components/monitoring/refresh-controls';
 import VisionLabelBadge from '@/components/monitoring/vision-label-badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import {
     Select,
     SelectContent,
@@ -58,15 +61,20 @@ export default function History() {
 
     return (
         <>
-            <Head title="History" />
+            <Head title="Riwayat" />
 
-            <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-4">
+            <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto p-4 md:p-6">
                 <div className="flex flex-wrap items-end justify-between gap-3">
-                    <Heading
-                        title="History"
-                        description="Histori pembacaan sensor dan hasil sensor fusion untuk setiap sapi."
-                        className="mb-0"
-                    />
+                    <div>
+                        <h1 className="flex items-center gap-2 text-lg font-bold text-gray-800 dark:text-white">
+                            <HistoryIcon className="size-5 text-brand-primary dark:text-brand-accent" />
+                            Riwayat Sensor
+                        </h1>
+                        <p className="text-xs text-gray-500">
+                            Histori pembacaan sensor dan hasil sensor fusion
+                            untuk setiap sapi.
+                        </p>
+                    </div>
                     <RefreshControls
                         updatedAt={history.updatedAt}
                         isRefreshing={history.isRefreshing}
@@ -78,15 +86,22 @@ export default function History() {
                     <CardHeader className="flex-row flex-wrap items-center gap-3 px-4">
                         <Select
                             value={cowId === null ? undefined : String(cowId)}
-                            onValueChange={(value) => setSelectedCow(Number(value))}
-                            disabled={cows.isLoading || (cows.data ?? []).length === 0}
+                            onValueChange={(value) =>
+                                setSelectedCow(Number(value))
+                            }
+                            disabled={
+                                cows.isLoading || (cows.data ?? []).length === 0
+                            }
                         >
                             <SelectTrigger className="w-56">
                                 <SelectValue placeholder="Pilih sapi" />
                             </SelectTrigger>
                             <SelectContent>
                                 {(cows.data ?? []).map((cow) => (
-                                    <SelectItem key={cow.id} value={String(cow.id)}>
+                                    <SelectItem
+                                        key={cow.id}
+                                        value={String(cow.id)}
+                                    >
                                         {cow.code} · {cow.name}
                                     </SelectItem>
                                 ))}
@@ -102,7 +117,10 @@ export default function History() {
                             </SelectTrigger>
                             <SelectContent>
                                 {WINDOWS.map((window) => (
-                                    <SelectItem key={window} value={String(window)}>
+                                    <SelectItem
+                                        key={window}
+                                        value={String(window)}
+                                    >
                                         {window} jam
                                     </SelectItem>
                                 ))}
@@ -111,8 +129,9 @@ export default function History() {
 
                         {history.data !== null ? (
                             <span className="text-xs text-muted-foreground">
-                                {history.data.temperature.length} pembacaan suhu,{' '}
-                                {history.data.risk_score.length} penilaian risiko
+                                {history.data.temperature.length} pembacaan
+                                suhu, {history.data.risk_score.length} penilaian
+                                risiko
                             </span>
                         ) : null}
 
@@ -141,11 +160,17 @@ export default function History() {
 
                     <CardContent className="flex flex-col gap-6 px-4">
                         {cows.error !== null ? (
-                            <ErrorState error={cows.error} onRetry={cows.refresh} />
+                            <ErrorState
+                                error={cows.error}
+                                onRetry={cows.refresh}
+                            />
                         ) : null}
 
                         {history.error !== null ? (
-                            <ErrorState error={history.error} onRetry={history.refresh} />
+                            <ErrorState
+                                error={history.error}
+                                onRetry={history.refresh}
+                            />
                         ) : null}
 
                         {cows.isLoading && cows.data === null ? (
@@ -163,31 +188,37 @@ export default function History() {
                                         </h3>
                                         <LineChart
                                             description={`Grafik suhu tubuh selama ${hours} jam terakhir`}
-                                            points={(history.data?.temperature ?? []).map(
-                                                (point) => ({
-                                                    recordedAt: point.recorded_at,
-                                                    value: point.value,
-                                                }),
-                                            )}
+                                            points={(
+                                                history.data?.temperature ?? []
+                                            ).map((point) => ({
+                                                recordedAt: point.recorded_at,
+                                                value: point.value,
+                                            }))}
                                             unit="suhu"
-                                            formatValue={(value) => value.toFixed(1)}
+                                            formatValue={(value) =>
+                                                value.toFixed(1)
+                                            }
                                         />
                                     </div>
 
                                     <div className="flex flex-col gap-2">
-                                        <h3 className="text-sm font-medium">Risk score</h3>
+                                        <h3 className="text-sm font-medium">
+                                            Risk score
+                                        </h3>
                                         <LineChart
                                             description={`Grafik risk score selama ${hours} jam terakhir`}
-                                            points={(history.data?.risk_score ?? []).map(
-                                                (point) => ({
-                                                    recordedAt: point.recorded_at,
-                                                    value: point.value,
-                                                }),
-                                            )}
+                                            points={(
+                                                history.data?.risk_score ?? []
+                                            ).map((point) => ({
+                                                recordedAt: point.recorded_at,
+                                                value: point.value,
+                                            }))}
                                             unit="skor"
                                             domain={{ min: 0, max: 100 }}
                                             strokeClassName="stroke-amber-500"
-                                            formatValue={(value) => value.toFixed(0)}
+                                            formatValue={(value) =>
+                                                value.toFixed(0)
+                                            }
                                         />
                                     </div>
                                 </div>
@@ -196,27 +227,37 @@ export default function History() {
                                     <h3 className="text-sm font-medium">
                                         Riwayat prediksi computer vision
                                     </h3>
-                                    {(history.data?.vision ?? []).length === 0 ? (
+                                    {(history.data?.vision ?? []).length ===
+                                    0 ? (
                                         <EmptyState message="Belum ada prediksi computer vision pada rentang ini." />
                                     ) : (
                                         <div className="max-h-96 overflow-auto rounded-xl border">
                                             <Table>
                                                 <TableHeader>
                                                     <TableRow>
-                                                        <TableHead>Waktu</TableHead>
-                                                        <TableHead>Label</TableHead>
+                                                        <TableHead>
+                                                            Waktu
+                                                        </TableHead>
+                                                        <TableHead>
+                                                            Label
+                                                        </TableHead>
                                                         <TableHead className="text-right">
                                                             Confidence
                                                         </TableHead>
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
-                                                    {(history.data?.vision ?? [])
+                                                    {(
+                                                        history.data?.vision ??
+                                                        []
+                                                    )
                                                         .slice()
                                                         .reverse()
                                                         .map((point) => (
                                                             <TableRow
-                                                                key={point.recorded_at}
+                                                                key={
+                                                                    point.recorded_at
+                                                                }
                                                             >
                                                                 <TableCell>
                                                                     {formatDateTime(
@@ -225,7 +266,9 @@ export default function History() {
                                                                 </TableCell>
                                                                 <TableCell>
                                                                     <VisionLabelBadge
-                                                                        label={point.label}
+                                                                        label={
+                                                                            point.label
+                                                                        }
                                                                     />
                                                                 </TableCell>
                                                                 <TableCell className="text-right tabular-nums">
@@ -253,16 +296,23 @@ export default function History() {
                                                     <TableHead className="text-right">
                                                         Skor
                                                     </TableHead>
-                                                    <TableHead>Alasan</TableHead>
+                                                    <TableHead>
+                                                        Alasan
+                                                    </TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
-                                                {(history.data?.risk_score ?? [])
+                                                {(
+                                                    history.data?.risk_score ??
+                                                    []
+                                                )
                                                     .slice()
                                                     .reverse()
                                                     .map((point) => (
                                                         <TableRow
-                                                            key={point.recorded_at}
+                                                            key={
+                                                                point.recorded_at
+                                                            }
                                                         >
                                                             <TableCell>
                                                                 {formatDateTime(
@@ -299,7 +349,7 @@ History.layout = {
             href: dashboard(),
         },
         {
-            title: 'History',
+            title: 'Riwayat',
             href: historyIndex(),
         },
     ],

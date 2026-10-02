@@ -1,59 +1,58 @@
 import {
     Activity,
-    Beef,
-    Gauge,
-    History,
     LayoutGrid,
+    LineChart,
+    ListTree,
+    Map as MapIcon,
     Settings,
-    Users,
-} from "lucide-react";
-import { dashboard } from "@/routes";
-import { index as cowsIndex } from "@/routes/cows";
-import { index as historyIndex } from "@/routes/history";
-import { index as usersIndex } from "@/routes/users";
-import { index as monitoringIndex } from "@/routes/monitoring";
-import { edit as editFusionSettings } from "@/routes/fusion-settings";
-import { edit as profileEdit } from "@/routes/profile";
-import type { NavItem } from "@/types";
+} from 'lucide-react';
+import { dashboard } from '@/routes';
+import { index as barnMapIndex } from '@/routes/barn-map';
+import { index as cowsIndex } from '@/routes/cows';
+import { index as analyticsIndex } from '@/routes/analytics';
+import { index as detailIndex } from '@/routes/detail';
+import { edit as profileEdit } from '@/routes/profile';
+import type { NavItem } from '@/types';
 
 /**
- * Single source of truth for the CATTLEYE sidebar. Adding a page means adding
- * one entry here instead of editing the sidebar component.
+ * Single source of truth for the CATTLEYE sidebar, mirroring the six entries of
+ * "Desain Dashboard.html". Adding a page means adding one entry here instead of
+ * editing the sidebar component.
  */
 export const mainNavItems: NavItem[] = [
     {
-        title: "Dashboard",
+        title: 'Gambaran Umum',
         href: dashboard(),
         icon: LayoutGrid,
     },
     {
-        title: "Cows",
+        title: 'Peta Kandang',
+        href: barnMapIndex(),
+        icon: MapIcon,
+    },
+    {
+        title: 'Daftar Ternak',
         href: cowsIndex(),
-        icon: Beef,
+        icon: ListTree,
     },
     {
-        title: "Monitoring",
-        href: monitoringIndex(),
+        title: 'Detail Ternak',
+        href: detailIndex(),
         icon: Activity,
+        // `cows/show` is the same destination as `/detail`, so light the item up
+        // on both URLs.
+        activePrefixes: ['/cows/'],
     },
     {
-        title: "History",
-        href: historyIndex(),
-        icon: History,
+        title: 'Analitik',
+        href: analyticsIndex(),
+        icon: LineChart,
     },
     {
-        title: "Threshold fusion",
-        href: editFusionSettings(),
-        icon: Gauge,
-    },
-    {
-        title: "Akun pengguna",
-        href: usersIndex(),
-        icon: Users,
-    },
-    {
-        title: "Settings",
+        title: 'Pengaturan',
         href: profileEdit(),
         icon: Settings,
+        // Every settings sub-route belongs to this entry.
+        activePrefixes: ['/settings'],
     },
 ];

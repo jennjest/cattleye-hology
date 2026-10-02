@@ -46,16 +46,20 @@ export default function LineChart({
     formatValue = (value) => value.toFixed(1),
     referenceLines = [],
     domain,
-    strokeClassName = 'stroke-primary',
+    strokeClassName = 'stroke-brand-secondary',
     emptyMessage = 'Belum ada pembacaan pada rentang waktu ini.',
     className,
 }: Props) {
     const samples = points
-        .map((point) => ({ time: Date.parse(point.recordedAt), value: point.value }))
+        .map((point) => ({
+            time: Date.parse(point.recordedAt),
+            value: point.value,
+        }))
         .filter((sample) => Number.isFinite(sample.time));
 
     const measured = samples.filter(
-        (sample): sample is { time: number; value: number } => sample.value !== null,
+        (sample): sample is { time: number; value: number } =>
+            sample.value !== null,
     );
 
     if (measured.length === 0) {
@@ -87,7 +91,9 @@ export default function LineChart({
             return PADDING.left + innerWidth / 2;
         }
 
-        return PADDING.left + ((time - minTime) / (maxTime - minTime)) * innerWidth;
+        return (
+            PADDING.left + ((time - minTime) / (maxTime - minTime)) * innerWidth
+        );
     };
 
     const yFor = (value: number): number =>
@@ -184,7 +190,7 @@ export default function LineChart({
                     cx={xFor(last.time)}
                     cy={yFor(last.value)}
                     r={3.5}
-                    className="fill-primary"
+                    className="fill-brand-secondary"
                 />
 
                 <text

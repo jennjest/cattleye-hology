@@ -106,4 +106,107 @@ class CowMonitoringService
             ? (int) $recordedAt->diffInSeconds(now())
             : null;
     }
+
+    /**
+     * Herd-wide aggregates for the analytics dashboard.
+     *
+     * Grouping happens in SQL so a 90 day window does not pull every reading
+     * into PHP, but the activity heatmap needs the JSON `activity` column
+     * decoded, which SQLite and MySQL spell differently; that one is bucketed
+     * in PHP over a capped, short window instead.
+     *
+     * Days without telemetry are simply absent from `daily`: a gap is missing
+     * data, not a zero the chart should draw.
+     *
+     * @return array<string, mixed>
+     */
+    public function populationSummary(int $days, int $heatmapLimit = 5000): array
+    {
+        $since = now()->subDays($days);
+
+        $temperatures = SensorReading::query()
+            ->where('recorded_at', '>=', $since)
+            ->whereNotNull('temperature')
+            ->selectRaw('DATE(recorded_at) as bucket, AVG(temperature) as value, COUNT(*) as samples')
+            ->groupBy('bucket')
+            ->orderBy('bucket')
+            ->pluck('value', 'bucket');
+
+        $riskScores = RiskAssessment::query()
+            ->where('recorded_at', '>=', $since)
+            ->selectRaw('DATE(recorded_at) as bucket, AVG(score) as value')
+            ->groupBy('bucket')
+            ->orderBy('bucket')
+            ->pluck('value', 'bucket');
+
+        $daily = [];
+
+        foreach ($temperatures as $date => $average) {
+            $daily[] = [
+                'date' => (string) $date,
+                'avg_temperature' => round((float) $average, 2),
+                'avg_risk_score' => $riskScores->has($date)
+                    ? round((float) $riskScores->get($date), 2)
+                    : null,
+            ];
+        }
+
+        return [
+            'window' => [
+                'days' => $days,
+                'from' => $since->toIso8601String(),
+                'to' => now()->toIso8601String(),
+            ],
+            'daily' => $daily,
+            'hourly_activity' => $this->activityBuckets($heatmapLimit),
+        ];
+    }
+
+    /**
+     * Average IMU activity score per two-hour bucket of the last day, used for
+     * the "Heatmap Jam Aktivitas Ternak" panel.
+     *
+     * @return array<int, array{hour: int, score: float|null}>
+     */
+    private function activityBuckets(int $limit): array
+    {
+        $buckets = [];
+
+        foreach (range(0, 11) as $index) {
+            $buckets[$index] = ['hour' => $index * 2, 'sum' => 0.0, 'samples' => 0];
+        }
+
+        SensorReading::query()
+            ->where('recorded_at', '>=', now()->subDay())
+            ->whereNotNull('activity')
+            ->orderByDesc('recorded_at')
+            ->limit($limit)
+            ->get(['recorded_at', 'activity'])
+            ->each(function (SensorReading $reading) use (&$buckets): void {
+                $score = $reading->activity['score'] ?? null;
+
+                if (! is_numeric($score)) {
+                    return;
+                }
+
+                // `recorded_at` is stored in the app timezone, so its hour is
+                // the operator's hour and can be bucketed directly.
+                $hour = (int) $reading->recorded_at->format('G');
+
+                if ($hour > 23) {
+                    return;
+                }
+
+                $index = intdiv($hour, 2);
+                $buckets[$index]['sum'] += (float) $score;
+                $buckets[$index]['samples'] += 1;
+            });
+
+        return array_map(static fn (array $bucket): array => [
+            'hour' => $bucket['hour'],
+            'score' => $bucket['samples'] === 0
+                ? null
+                : round($bucket['sum'] / $bucket['samples'], 2),
+        ], array_values($buckets));
+    }
 }

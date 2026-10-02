@@ -4,7 +4,6 @@ import {
     RefreshCwIcon,
     VideoIcon,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
 import ReadingValue from '@/components/monitoring/reading-value';
 import RiskStatusBadge from '@/components/monitoring/risk-status-badge';
 import VisionLabelBadge from '@/components/monitoring/vision-label-badge';
@@ -18,11 +17,8 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-    formatNumber,
-    formatPercentage,
-    formatTime,
-} from '@/lib/format';
+import { useMjpegStream } from '@/hooks/use-mjpeg-stream';
+import { formatNumber, formatPercentage, formatTime } from '@/lib/format';
 import type { CameraStatus } from '@/types/camera';
 
 /**
@@ -33,11 +29,10 @@ import type { CameraStatus } from '@/types/camera';
  * through PHP: proxying a continuous multipart response would buffer frames and
  * turn "live" into "delayed by a few seconds".
  *
- * Two details matter for a multipart feed:
- *  - `onLoad` fires as soon as the first frame decodes, even though the request
- *    stays open forever, so it is used as the "stream is up" signal.
- *  - the element must not be re-created on every poll. React keeps it as long as
- *    `src` is unchanged; the retry button bumps `nonce` on purpose to restart it.
+ * `onLoad` fires as soon as the first frame decodes, even though the request
+ * stays open forever, so it is used as the "stream is up" signal. The element
+ * must not be re-created on every poll; only the hook's restart nonce changes
+ * `src`, which is what actually reopens the connection.
  */
 type Props = {
     status: CameraStatus | null;
@@ -46,30 +41,20 @@ type Props = {
     className?: string;
 };
 
-export default function LiveCamera({ status, isLoading, onRetry, className }: Props) {
-    const [streamUrl, setStreamUrl] = useState<string | null>(null);
-    const [hasFrame, setHasFrame] = useState(false);
-    const [streamFailed, setStreamFailed] = useState(false);
-    const [nonce, setNonce] = useState(0);
-
-    // Adopt a new URL only when it really changed, so polling never restarts the
-    // stream behind the operator's back.
-    useEffect(() => {
-        const next = status?.stream_url ?? null;
-
-        if (next !== streamUrl) {
-            setStreamUrl(next);
-            setHasFrame(false);
-            setStreamFailed(false);
-        }
-    }, [status?.stream_url, streamUrl]);
+export default function LiveCamera({
+    status,
+    isLoading,
+    onRetry,
+    className,
+}: Props) {
+    const streamUrl = status?.stream_url ?? null;
+    const { src, hasFrame, failed, markFrame, markFailed, restart } =
+        useMjpegStream(streamUrl);
 
     const isOffline = status !== null && !status.reachable;
 
-    const restart = (): void => {
-        setNonce((value) => value + 1);
-        setHasFrame(false);
-        setStreamFailed(false);
+    const handleRestart = (): void => {
+        restart();
         onRetry();
     };
 
@@ -78,11 +63,11 @@ export default function LiveCamera({ status, isLoading, onRetry, className }: Pr
             <CardHeader className="px-4">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="grid gap-1">
-                        <CardTitle className="flex items-center gap-2 text-base">
-                            <VideoIcon className="size-4" />
-                            Live camera
+                        <CardTitle className="flex items-center gap-2 text-sm">
+                            <VideoIcon className="size-4 text-brand-primary dark:text-brand-accent" />
+                            Kamera Langsung
                         </CardTitle>
-                        <CardDescription>
+                        <CardDescription className="text-xs">
                             Aliran MJPEG dari Raspberry Pi. Semua pemrosesan
                             video berjalan di Pi, bukan di server.
                         </CardDescription>
@@ -109,7 +94,8 @@ export default function LiveCamera({ status, isLoading, onRetry, className }: Pr
                             type="button"
                             variant="outline"
                             size="sm"
-                            onClick={restart}
+                            onClick={handleRestart}
+                            className="rounded-xl text-xs"
                         >
                             <RefreshCwIcon />
                             Sambung ulang
@@ -119,24 +105,20 @@ export default function LiveCamera({ status, isLoading, onRetry, className }: Pr
             </CardHeader>
 
             <CardContent className="grid gap-4 px-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-                <div className="relative aspect-video overflow-hidden rounded-lg border bg-muted">
-                    {streamUrl === null ? (
+                <div className="relative aspect-video overflow-hidden rounded-xl border bg-brand-dark">
+                    {src === null ? (
                         <Skeleton className="size-full" />
                     ) : (
                         <img
-                            key={`${streamUrl}-${nonce}`}
-                            src={streamUrl}
-                            alt="Live camera sapi dari Raspberry Pi"
+                            src={src}
+                            alt="Kamera langsung sapi dari Raspberry Pi"
                             className="size-full object-contain"
-                            onLoad={() => setHasFrame(true)}
-                            onError={() => {
-                                setStreamFailed(true);
-                                setHasFrame(false);
-                            }}
+                            onLoad={markFrame}
+                            onError={markFailed}
                         />
                     )}
 
-                    {isOffline || streamFailed ? (
+                    {isOffline || failed ? (
                         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-background/85 p-4 text-center">
                             <CameraOffIcon className="size-6 text-muted-foreground" />
                             <p className="text-sm font-medium">
@@ -152,9 +134,11 @@ export default function LiveCamera({ status, isLoading, onRetry, className }: Pr
                         </div>
                     ) : null}
 
-                    {hasFrame === false && streamFailed === false && isOffline === false ? (
+                    {hasFrame === false &&
+                    failed === false &&
+                    isOffline === false ? (
                         <div className="absolute inset-x-0 bottom-0 bg-background/80 px-3 py-1.5 text-xs text-muted-foreground">
-                            {isLoading && streamUrl === null
+                            {isLoading && src === null
                                 ? 'Menghubungi Raspberry Pi...'
                                 : 'Menunggu frame pertama...'}
                         </div>
@@ -188,10 +172,17 @@ function EdgeInputs({ status }: { status: CameraStatus | null }) {
 
     const { wearable, activity, vision, risk } = state;
 
-    if (wearable === null && activity === null && vision === null && risk === null) {
+    if (
+        wearable === null &&
+        activity === null &&
+        vision === null &&
+        risk === null
+    ) {
         return (
             <div className="flex flex-col items-start gap-2 rounded-lg border border-dashed p-4">
-                <p className="text-sm font-medium">Input fusion belum tersedia</p>
+                <p className="text-sm font-medium">
+                    Input fusion belum tersedia
+                </p>
                 <p className="text-sm text-muted-foreground">
                     Pi belum mengirim state. Proses fusion baru berjalan setelah
                     kamera dan sensor wearer menghasilkan data pertama.
@@ -249,7 +240,7 @@ function EdgeInputs({ status }: { status: CameraStatus | null }) {
                     ) : (
                         <>
                             <VisionLabelBadge label={vision.label} />
-                            <span className="text-sm tabular-nums text-muted-foreground">
+                            <span className="text-sm text-muted-foreground tabular-nums">
                                 {formatPercentage(vision.confidence)}
                             </span>
                             <span className="text-xs text-muted-foreground">
@@ -261,14 +252,16 @@ function EdgeInputs({ status }: { status: CameraStatus | null }) {
             </div>
 
             <div className="grid gap-2">
-                <span className="text-xs text-muted-foreground">Hasil fusion</span>
+                <span className="text-xs text-muted-foreground">
+                    Hasil fusion
+                </span>
                 <div className="flex flex-wrap items-center gap-2">
                     {risk === null ? (
                         <span className="text-sm text-muted-foreground">—</span>
                     ) : (
                         <>
                             <RiskStatusBadge status={risk.status} />
-                            <span className="text-sm tabular-nums text-muted-foreground">
+                            <span className="text-sm text-muted-foreground tabular-nums">
                                 skor {formatNumber(risk.score, 1)}
                             </span>
                             <span className="text-xs text-muted-foreground">
@@ -283,7 +276,8 @@ function EdgeInputs({ status }: { status: CameraStatus | null }) {
                 <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
                     <CircleAlertIcon className="mt-0.5 size-3.5 shrink-0" />
                     Baseline aktivitas belum stabil. Skor aktivitas sementara
-                    memakai nilai default, jadi risiko belum bisa dianggap final.
+                    memakai nilai default, jadi risiko belum bisa dianggap
+                    final.
                 </p>
             ) : null}
 

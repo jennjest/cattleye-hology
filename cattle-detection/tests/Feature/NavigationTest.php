@@ -26,6 +26,9 @@ class NavigationTest extends TestCase
     {
         return [
             'dashboard' => ['dashboard'],
+            'barn map' => ['barn-map.index'],
+            'analytics' => ['analytics.index'],
+            'detail' => ['detail.index'],
             'cows index' => ['cows.index'],
             'monitoring' => ['monitoring.index'],
             'history' => ['history.index'],

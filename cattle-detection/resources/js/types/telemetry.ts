@@ -24,6 +24,22 @@ export type VisionLabelValue = (typeof VISION_LABELS)[number];
 /** Status the Raspberry Pi sends when it has nothing fresh to report. */
 export const NO_DATA_STATUS: RiskStatusValue = 'Tidak Ada Data';
 
+/**
+ * Activity window reported by the edge fusion loop.
+ *
+ * Only `baseline_ready` and `score` are relied on for the UI; the rest is passed
+ * through for diagnostics. Every field is optional because the Pi adds keys over
+ * time and older payloads must keep rendering.
+ */
+export type ActivityWindow = {
+    score?: number | null;
+    ratio?: number | null;
+    baseline?: number | null;
+    baseline_ready?: boolean | null;
+    window_seconds?: number | null;
+    samples?: number | null;
+};
+
 export type SensorReading = {
     id: number;
     temperature: number | null;
@@ -33,6 +49,7 @@ export type SensorReading = {
     gx: number | null;
     gy: number | null;
     gz: number | null;
+    activity?: ActivityWindow | null;
     recorded_at: string;
 };
 
@@ -40,6 +57,8 @@ export type VisionPrediction = {
     id: number;
     label: VisionLabelValue;
     confidence: number;
+    /** Disease probability produced by the classification model, if reported. */
+    p_pmk?: number | null;
     recorded_at: string;
 };
 
@@ -48,6 +67,8 @@ export type RiskAssessment = {
     score: number;
     status: RiskStatusValue;
     reasons: string[];
+    /** Inputs that were unavailable to the fusion rule. */
+    missing?: string[];
     recorded_at: string;
 };
 

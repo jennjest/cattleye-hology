@@ -1,33 +1,34 @@
-import { Link } from "@inertiajs/react";
-import { MoreHorizontalIcon, PencilIcon, Trash2Icon } from "lucide-react";
-import RiskStatusBadge from "@/components/monitoring/risk-status-badge";
-import VisionLabelBadge from "@/components/monitoring/vision-label-badge";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Link } from '@inertiajs/react';
+import { Eye, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import CowAvatar from '@/components/monitoring/cow-avatar';
+import RiskStatusPill, {
+    riskDotClassName,
+} from '@/components/monitoring/risk-status-pill';
+import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from '@/components/ui/dropdown-menu';
 import {
     Table,
     TableBody,
-    TableCaption,
     TableCell,
     TableHead,
     TableHeader,
     TableRow,
-} from "@/components/ui/table";
-import { riskStatusOf } from "@/lib/cow-summary";
-import { formatNumber, formatRelativeTime, NOT_AVAILABLE } from "@/lib/format";
-import { latestRecordedAt } from "@/types/telemetry";
-import { show as cowShowRoute } from "@/routes/cows";
-import type { CowSummary } from "@/types/telemetry";
+} from '@/components/ui/table';
+import type { BarnAssignment } from '@/lib/barns';
+import { riskStatusOf } from '@/lib/cow-summary';
+import { formatNumber, NOT_AVAILABLE } from '@/lib/format';
+import { show as cowShowRoute } from '@/routes/cows';
+import type { CowSummary } from '@/types/telemetry';
+
+type Row = CowSummary & BarnAssignment;
 
 type Props = {
-    cows: CowSummary[];
-    caption?: string;
+    cows: Row[];
     /**
      * Passed only on the cow management page. The monitoring view stays
      * read-only so a stray click while watching the pen cannot delete a cow.
@@ -37,134 +38,176 @@ type Props = {
 };
 
 /**
- * Overview table of every cow with its newest telemetry.
+ * "Daftar Ternak" table, matching section "PAGE 3" of the mockup.
  *
- * Cells render an em dash when the Pi has not reported a value yet, so an
- * empty cell never reads as a zero measurement.
+ * Cells render an em dash when the Pi has not reported a value yet, so an empty
+ * cell never reads as a zero measurement.
  */
-export default function CowTable({ cows, caption, onEdit, onDelete }: Props) {
+export default function CowTable({ cows, onEdit, onDelete }: Props) {
     const canManage = onEdit !== undefined || onDelete !== undefined;
+
     return (
-        <div className="overflow-x-auto rounded-xl border">
+        <div className="overflow-x-auto">
             <Table>
-                {caption ? <TableCaption>{caption}</TableCaption> : null}
                 <TableHeader>
-                    <TableRow>
-                        <TableHead className="w-28">Kode</TableHead>
-                        <TableHead>Nama</TableHead>
-                        <TableHead className="text-right">Suhu (°C)</TableHead>
-                        <TableHead className="text-right">IMU (gx)</TableHead>
-                        <TableHead>Vision</TableHead>
-                        <TableHead className="text-right">Risk score</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Pembaruan</TableHead>
-                        {canManage && <TableHead className="w-12" />}
+                    <TableRow className="border-b border-gray-100 bg-gray-50/80 text-[11px] font-bold tracking-wider text-gray-500 uppercase dark:border-slate-700/80 dark:bg-slate-900/60">
+                        <TableHead className="px-4 py-3.5">Foto</TableHead>
+                        <TableHead className="px-4 py-3.5">ID Sapi</TableHead>
+                        <TableHead className="px-4 py-3.5">Nama Sapi</TableHead>
+                        <TableHead className="px-4 py-3.5">Kandang</TableHead>
+                        <TableHead className="px-4 py-3.5">Suhu (°C)</TableHead>
+                        <TableHead className="px-4 py-3.5">
+                            Aktivitas IoT
+                        </TableHead>
+                        <TableHead className="px-4 py-3.5">Status AI</TableHead>
+                        <TableHead className="px-4 py-3.5 text-center">
+                            Aksi
+                        </TableHead>
                     </TableRow>
                 </TableHeader>
-                <TableBody>
+
+                <TableBody className="divide-y divide-gray-100 text-xs dark:divide-slate-700/60">
                     {cows.map((cow) => {
-                        const {
-                            sensor_reading,
-                            vision_prediction,
-                            risk_assessment,
-                        } = cow.latest;
+                        const status = riskStatusOf(cow);
+                        const reading = cow.latest.sensor_reading;
+                        const activity = reading?.activity;
 
                         return (
-                            <TableRow key={cow.id}>
-                                <TableCell className="font-mono text-xs">
+                            <TableRow
+                                key={cow.id}
+                                className="transition-colors hover:bg-gray-50/70 dark:hover:bg-slate-800/60"
+                            >
+                                <TableCell className="px-4 py-3">
+                                    <CowAvatar
+                                        name={cow.name}
+                                        dotClassName={riskDotClassName(status)}
+                                        className="size-9"
+                                    />
+                                </TableCell>
+
+                                <TableCell className="px-4 py-3">
                                     <Link
                                         href={cowShowRoute(cow.id)}
-                                        className="font-medium hover:underline"
+                                        className="font-mono font-bold text-brand-primary hover:underline dark:text-brand-accent"
                                     >
-                                        {cow.code}
+                                        #{cow.code}
                                     </Link>
                                 </TableCell>
-                                <TableCell>{cow.name}</TableCell>
-                                <TableCell className="text-right tabular-nums">
-                                    {sensor_reading === null
-                                        ? NOT_AVAILABLE
-                                        : formatNumber(
-                                              sensor_reading.temperature,
-                                          )}
+
+                                <TableCell className="px-4 py-3 font-semibold text-gray-800 dark:text-white">
+                                    {cow.name}
                                 </TableCell>
-                                <TableCell className="text-right tabular-nums">
-                                    {sensor_reading === null
-                                        ? NOT_AVAILABLE
-                                        : formatNumber(sensor_reading.gx, 2)}
+
+                                <TableCell className="px-4 py-3 text-gray-600 dark:text-gray-300">
+                                    {cow.barn.name}
                                 </TableCell>
-                                <TableCell>
-                                    {vision_prediction === null ? (
-                                        <span className="text-muted-foreground">
+
+                                <TableCell className="px-4 py-3 font-semibold tabular-nums">
+                                    {reading?.temperature === undefined ||
+                                    reading?.temperature === null ? (
+                                        <span className="text-gray-400">
                                             {NOT_AVAILABLE}
                                         </span>
                                     ) : (
-                                        <VisionLabelBadge
-                                            label={vision_prediction.label}
-                                            confidence={
-                                                vision_prediction.confidence
+                                        <span
+                                            className={
+                                                reading.temperature > 39.3
+                                                    ? 'text-red-600 dark:text-red-400'
+                                                    : 'text-gray-800 dark:text-white'
                                             }
-                                        />
+                                        >
+                                            {formatNumber(reading.temperature)}
+                                        </span>
                                     )}
                                 </TableCell>
-                                <TableCell className="text-right tabular-nums">
-                                    {risk_assessment === null
-                                        ? NOT_AVAILABLE
-                                        : formatNumber(risk_assessment.score)}
-                                </TableCell>
-                                <TableCell>
-                                    <RiskStatusBadge
-                                        status={riskStatusOf(cow)}
-                                    />
-                                </TableCell>
-                                <TableCell className="text-right text-muted-foreground">
-                                    {latestRecordedAt(cow.latest) === null ? (
-                                        <Badge variant="secondary">
-                                            Belum pernah
-                                        </Badge>
+
+                                <TableCell className="px-4 py-3">
+                                    {activity?.score === undefined ||
+                                    activity?.score === null ? (
+                                        <span className="text-gray-400">
+                                            {NOT_AVAILABLE}
+                                        </span>
                                     ) : (
-                                        formatRelativeTime(
-                                            latestRecordedAt(cow.latest),
-                                        )
+                                        <span className="flex items-center gap-2">
+                                            <span className="h-1.5 w-16 overflow-hidden rounded-full bg-gray-100 dark:bg-slate-700">
+                                                <span
+                                                    className="block h-full rounded-full bg-brand-primary"
+                                                    style={{
+                                                        width: `${Math.min(
+                                                            Math.round(
+                                                                activity.score,
+                                                            ),
+                                                            100,
+                                                        )}%`,
+                                                    }}
+                                                />
+                                            </span>
+                                            <span className="text-gray-600 tabular-nums dark:text-gray-300">
+                                                {formatNumber(activity.score)}
+                                            </span>
+                                        </span>
                                     )}
                                 </TableCell>
-                                {canManage && (
-                                    <TableCell>
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    aria-label={`Kelola ${cow.code}`}
-                                                >
-                                                    <MoreHorizontalIcon />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                {onEdit && (
-                                                    <DropdownMenuItem
-                                                        onSelect={() =>
-                                                            onEdit(cow)
-                                                        }
+
+                                <TableCell className="px-4 py-3">
+                                    <RiskStatusPill status={status} />
+                                </TableCell>
+
+                                <TableCell className="px-4 py-3">
+                                    <div className="flex items-center justify-center gap-1">
+                                        <Button
+                                            asChild
+                                            variant="ghost"
+                                            size="icon"
+                                            className="size-8 text-gray-500 hover:text-brand-primary"
+                                        >
+                                            <Link
+                                                href={cowShowRoute(cow.id)}
+                                                aria-label={`Lihat detail ${cow.code}`}
+                                            >
+                                                <Eye className="size-4" />
+                                            </Link>
+                                        </Button>
+
+                                        {canManage ? (
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="size-8 text-gray-500"
+                                                        aria-label={`Kelola ${cow.code}`}
                                                     >
-                                                        <PencilIcon />
-                                                        Edit
-                                                    </DropdownMenuItem>
-                                                )}
-                                                {onDelete && (
-                                                    <DropdownMenuItem
-                                                        variant="destructive"
-                                                        onSelect={() =>
-                                                            onDelete(cow)
-                                                        }
-                                                    >
-                                                        <Trash2Icon />
-                                                        Hapus
-                                                    </DropdownMenuItem>
-                                                )}
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </TableCell>
-                                )}
+                                                        <MoreHorizontal className="size-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    {onEdit ? (
+                                                        <DropdownMenuItem
+                                                            onSelect={() =>
+                                                                onEdit(cow)
+                                                            }
+                                                        >
+                                                            <Pencil />
+                                                            Edit
+                                                        </DropdownMenuItem>
+                                                    ) : null}
+                                                    {onDelete ? (
+                                                        <DropdownMenuItem
+                                                            variant="destructive"
+                                                            onSelect={() =>
+                                                                onDelete(cow)
+                                                            }
+                                                        >
+                                                            <Trash2 />
+                                                            Hapus
+                                                        </DropdownMenuItem>
+                                                    ) : null}
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        ) : null}
+                                    </div>
+                                </TableCell>
                             </TableRow>
                         );
                     })}
