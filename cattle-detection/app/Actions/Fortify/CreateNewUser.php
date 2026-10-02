@@ -24,10 +24,16 @@ class CreateNewUser implements CreatesNewUsers
             'password' => $this->passwordRules(),
         ])->validate();
 
-        return User::create([
+        $user = User::create([
             'name' => $input['name'],
             'email' => $input['email'],
             'password' => $input['password'],
         ]);
+
+        // Registration is intentionally not gated by email verification: the
+        // account is usable immediately, so no verification mail is required.
+        $user->markEmailAsVerified();
+
+        return $user;
     }
 }

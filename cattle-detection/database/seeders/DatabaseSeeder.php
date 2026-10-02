@@ -20,9 +20,13 @@ class DatabaseSeeder extends Seeder
             TelemetrySeeder::class,
         ]);
 
-        User::firstOrCreate(
+        $user = User::firstOrCreate(
             ['email' => 'test@example.com'],
             ['name' => 'Test User', 'password' => 'password'],
         );
+
+        if (! $user->hasVerifiedEmail()) {
+            $user->markEmailAsVerified();
+        }
     }
 }
